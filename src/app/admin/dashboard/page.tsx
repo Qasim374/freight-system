@@ -1,9 +1,5 @@
-import DashboardStats from "@/components/admin/DashboardStats";
+import DashboardStatsClient from "@/components/admin/DashboardStatsClient";
 import { getServerSession } from "next-auth";
-
-import { db } from "@/lib/db";
-import { count, eq } from "drizzle-orm";
-import { shipments, amendments, invoices } from "@/lib/schema";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export default async function AdminDashboard() {
@@ -13,22 +9,6 @@ export default async function AdminDashboard() {
     return <div>Unauthorized</div>;
   }
 
-  // Fetch stats
-  const quoteRequests = await db
-    .select({ count: count() })
-    .from(shipments)
-    .where(eq(shipments.status, "quote_requested"));
-
-  const pendingAmendments = await db
-    .select({ count: count() })
-    .from(amendments)
-    .where(eq(amendments.status, "admin_review"));
-
-  const unpaidInvoices = await db
-    .select({ count: count() })
-    .from(invoices)
-    .where(eq(invoices.status, "unpaid"));
-
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -36,11 +16,7 @@ export default async function AdminDashboard() {
           Admin Dashboard
         </h1>
 
-        <DashboardStats
-          quoteRequests={quoteRequests[0].count}
-          pendingAmendments={pendingAmendments[0].count}
-          unpaidInvoices={unpaidInvoices[0].count}
-        />
+        <DashboardStatsClient />
 
         <div className="mt-8 grid grid-cols-1 gap-6">
           {/* Recent Activity Section */}
