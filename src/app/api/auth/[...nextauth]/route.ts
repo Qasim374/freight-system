@@ -51,18 +51,11 @@ export const authOptions: NextAuthOptions = {
 
         if (!user) return null;
 
-        // Check if password is hashed (starts with $2b$)
-        const isHashed = user.password.startsWith("$2b$");
-
-        let isValid = false;
-
-        if (isHashed) {
-          // Compare with bcrypt for hashed passwords
-          isValid = await bcrypt.compare(credentials.password, user.password);
-        } else {
-          // Direct comparison for plain text passwords (temporary)
-          isValid = credentials.password === user.password;
-        }
+        // Only use bcrypt for secure password comparison
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
 
         if (isValid) {
           return {
