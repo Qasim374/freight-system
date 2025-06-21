@@ -1,28 +1,53 @@
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { invoices, shipments } from "@/lib/schema";
+import { invoices, shipments, users } from "@/lib/schema";
+
+type InvoiceType = "client" | "vendor";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const type = searchParams.get("type") || "client";
+  const typeParam = searchParams.get("type") || "client";
+
+  // Validate type parameter
+  const validTypes: InvoiceType[] = ["client", "vendor"];
+  const type: InvoiceType = validTypes.includes(typeParam as InvoiceType)
+    ? (typeParam as InvoiceType)
+    : "client";
 
   try {
     const invoiceData = await db
-      .select()
+      .select({
+        id: invoices.id,
+        shipmentId: invoices.shipmentId,
+        amount: invoices.amount,
+        type: invoices.type,
+        status: invoices.status,
+        dueDate: invoices.dueDate,
+        createdAt: invoices.createdAt,
+        clientEmail: users.email,
+        clientCompany: users.company,
+        containerType: shipments.containerType,
+        commodity: shipments.commodity,
+      })
       .from(invoices)
       .innerJoin(shipments, eq(invoices.shipmentId, shipments.id))
+      .innerJoin(users, eq(shipments.clientId, users.id))
       .where(eq(invoices.type, type));
 
+    console.log(invoiceData);
     return NextResponse.json(
       invoiceData.map((i) => ({
-        id: i.invoices.id,
-        shipmentId: i.invoices.shipmentId,
-        amount: i.invoices.amount,
-        type: i.invoices.type,
-        status: i.invoices.status,
-        dueDate: i.invoices.dueDate,
-        createdAt: i.invoices.createdAt,
+        id: i.id,
+        shipmentId: i.shipmentId,
+        amount: Number(i.amount),
+        type: i.type,
+        status: i.status,
+        dueDate: i.dueDate ? i.dueDate.toISOString() : null,
+        createdAt: i.createdAt?.toISOString() || new Date().toISOString(),
+        client: i.clientCompany || i.clientEmail,
+        containerType: i.containerType || "N/A",
+        commodity: i.commodity || "N/A",
       }))
     );
   } catch (error) {
