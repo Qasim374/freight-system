@@ -41,20 +41,38 @@ export const shipments = mysqlTable("shipments", {
   status: mysqlEnum("status", [
     "quote_requested",
     "quote_received",
-    "booked",
+    "quote_confirmed",
+    "booking",
     "draft_bl",
     "final_bl",
     "in_transit",
+    "loading",
+    "sailed",
     "delivered",
   ]).default("quote_requested"),
   containerType: mysqlEnum("container_type", ["20ft", "40ft", "40HC"]),
   commodity: varchar("commodity", { length: 255 }),
+  numberOfContainers: int("number_of_containers"),
   weightPerContainer: decimal("weight_per_container", {
     precision: 10,
     scale: 2,
   }),
   preferredShipmentDate: timestamp("preferred_shipment_date"),
   collectionAddress: text("collection_address"),
+  // Tracking fields
+  carrierReference: varchar("carrier_reference", { length: 255 }),
+  eta: timestamp("eta"),
+  sailingDate: timestamp("sailing_date"),
+  loadingDate: timestamp("loading_date"),
+  deliveredDate: timestamp("delivered_date"),
+  // Quote workflow fields
+  quoteRequestedAt: timestamp("quote_requested_at").defaultNow(),
+  quoteDeadline: timestamp("quote_deadline"),
+  winningQuoteId: int("winning_quote_id"),
+  finalPrice: decimal("final_price", { precision: 10, scale: 2 }),
+  // BL workflow fields
+  hasDraftBL: boolean("has_draft_bl").default(false),
+  hasFinalBL: boolean("has_final_bl").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -9,6 +9,8 @@ import {
   DocumentTextIcon,
   CurrencyDollarIcon,
   ClockIcon,
+  ClipboardDocumentListIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 
 export default function ClientSidebar() {
@@ -16,11 +18,12 @@ export default function ClientSidebar() {
 
   const navigation = [
     { name: "Dashboard", href: "/client/dashboard", icon: HomeIcon },
+    { name: "Quote Requests", href: "/client/quote-requests", icon: ClipboardDocumentListIcon },
     { name: "New Quote", href: "/client/quotes/new", icon: PlusCircleIcon },
-    { name: "Shipments", href: "/client/shipments", icon: TruckIcon },
-    { name: "BL Approvals", href: "/client/bls", icon: DocumentTextIcon },
+    { name: "Active Shipments", href: "/client/active-shipments", icon: TruckIcon },
+    { name: "Shipments", href: "/client/shipments", icon: DocumentTextIcon },
     { name: "Invoices", href: "/client/invoices", icon: CurrencyDollarIcon },
-    { name: "History", href: "/client/history", icon: ClockIcon },
+    { name: "Shipment History", href: "/client/shipment-history", icon: ChartBarIcon },
   ];
 
   return (

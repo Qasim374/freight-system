@@ -3,6 +3,7 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { shipments, quotes } from "@/lib/schema";
 import { isClientRole } from "@/lib/auth-utils";
+import { v4 as uuidv4 } from "uuid";
 
 // GET - List client's quote requests
 export async function GET(request: Request) {
@@ -15,28 +16,38 @@ export async function GET(request: Request) {
 
   try {
     const clientQuotes = await db
-      .select()
+      .select({
+        id: shipments.id,
+        status: shipments.status,
+        containerType: shipments.containerType,
+        commodity: shipments.commodity,
+        numberOfContainers: shipments.numberOfContainers,
+        preferredShipmentDate: shipments.preferredShipmentDate,
+        createdAt: shipments.createdAt,
+        quoteDeadline: shipments.quoteDeadline,
+        quoteRequestedAt: shipments.quoteRequestedAt,
+      })
       .from(shipments)
       .where(eq(shipments.clientId, parseInt(userId)))
       .orderBy(desc(shipments.createdAt));
 
-    // Get quotes for each shipment
-    const quotesWithVendorQuotes = await Promise.all(
+    // Get quote counts for each shipment
+    const quotesWithCounts = await Promise.all(
       clientQuotes.map(async (shipment) => {
-        const vendorQuotes = await db
-          .select()
+        const quoteCount = await db
+          .select({ count: quotes.id })
           .from(quotes)
           .where(eq(quotes.shipmentId, shipment.id));
 
         return {
           ...shipment,
-          quotes: vendorQuotes,
+          quotes: quoteCount,
         };
       })
     );
 
     return NextResponse.json({
-      quotes: quotesWithVendorQuotes,
+      quotes: quotesWithCounts,
     });
   } catch (error) {
     console.error("Client quotes API error:", error);
@@ -52,24 +63,16 @@ export async function POST(request: Request) {
   const userId = request.headers.get("x-user-id");
   const userRole = request.headers.get("x-user-role");
 
-  console.log("API Debug - userId:", userId, "userRole:", userRole);
-
   if (!userId || !userRole || !isClientRole(userRole)) {
-    console.log(
-      "API Debug - Auth failed. userId:",
-      !!userId,
-      "userRole:",
-      !!userRole,
-      "isClientRole:",
-      isClientRole(userRole || "")
-    );
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const body = await request.json();
     const {
+      mode,
       containerType,
+      numberOfContainers,
       commodity,
       weightPerContainer,
       preferredShipmentDate,
@@ -77,29 +80,47 @@ export async function POST(request: Request) {
     } = body;
 
     // Validate required fields
-    if (!containerType || !commodity || !preferredShipmentDate) {
+    if (
+      !mode ||
+      !containerType ||
+      !numberOfContainers ||
+      !commodity ||
+      !preferredShipmentDate
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Create new shipment (quote request)
-    const shipmentId = crypto.randomUUID();
+    // Generate shipment ID
+    const shipmentId = uuidv4();
+
+    // Calculate 48-hour deadline
+    const quoteDeadline = new Date();
+    quoteDeadline.setHours(quoteDeadline.getHours() + 48);
+
+    // Create shipment
     await db.insert(shipments).values({
       id: shipmentId,
       clientId: parseInt(userId),
       status: "quote_requested",
       containerType,
       commodity,
-      weightPerContainer: weightPerContainer || 0,
+      weightPerContainer,
       preferredShipmentDate: new Date(preferredShipmentDate),
-      collectionAddress: collectionAddress || null,
+      collectionAddress: mode === "Ex-Works" ? collectionAddress : null,
+      quoteRequestedAt: new Date(),
+      quoteDeadline,
     });
+
+    // TODO: Route request to assigned vendors (this would be implemented in a separate service)
+    console.log(`Quote request ${shipmentId} created. Routing to vendors...`);
 
     return NextResponse.json({
       id: shipmentId,
-      message: "Quote request created successfully",
+      message: "Quote request created successfully. Vendors will be notified.",
+      deadline: quoteDeadline,
     });
   } catch (error) {
     console.error("Create quote API error:", error);
