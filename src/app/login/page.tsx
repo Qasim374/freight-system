@@ -10,6 +10,7 @@ import {
   CubeIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { getDashboardPath } from "@/lib/auth-utils";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -22,13 +23,9 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role) {
-      if (session.user.role.includes("admin")) {
-        router.push("/admin/dashboard");
-      } else if (session.user.role.includes("vendor")) {
-        router.push("/vendor/dashboard");
-      } else {
-        router.push("/client/dashboard");
-      }
+      const userRole = session.user.role;
+      const dashboardPath = getDashboardPath(userRole);
+      router.push(dashboardPath);
     }
   }, [session, status, router]);
 

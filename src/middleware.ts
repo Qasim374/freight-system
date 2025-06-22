@@ -1,5 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { isAdminRole, isVendorRole, isClientRole } from "@/lib/auth-utils";
 
 export default withAuth(
   function middleware(req) {
@@ -11,24 +12,34 @@ export default withAuth(
       return NextResponse.redirect(new URL("/login", req.url));
     }
 
-    // Role-based redirects
-    if (pathname.startsWith("/admin") && !token.role?.includes("admin")) {
-      return NextResponse.redirect(new URL("/unauthorized", req.url));
+    const userRole = token.role as string;
+
+    // Check admin access
+    if (pathname.startsWith("/admin")) {
+      if (!isAdminRole(userRole)) {
+        return NextResponse.redirect(new URL("/unauthorized", req.url));
+      }
     }
 
-    if (pathname.startsWith("/vendor") && !token.role?.includes("vendor")) {
-      return NextResponse.redirect(new URL("/unauthorized", req.url));
+    // Check vendor access
+    if (pathname.startsWith("/vendor")) {
+      if (!isVendorRole(userRole)) {
+        return NextResponse.redirect(new URL("/unauthorized", req.url));
+      }
     }
 
-    if (pathname.startsWith("/client") && !token.role?.includes("client")) {
-      return NextResponse.redirect(new URL("/unauthorized", req.url));
+    // Check client access
+    if (pathname.startsWith("/client")) {
+      if (!isClientRole(userRole)) {
+        return NextResponse.redirect(new URL("/unauthorized", req.url));
+      }
     }
 
     return NextResponse.next();
   },
   {
     callbacks: {
-      authorized: ({ token }) => {
+      authorized: () => {
         // Allow access to login page without token
         return true;
       },

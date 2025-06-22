@@ -1,11 +1,12 @@
 import DashboardStatsClient from "@/components/admin/DashboardStatsClient";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { isAdminRole } from "@/lib/auth-utils";
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
 
-  if (!session || !session.user.role.includes("admin")) {
+  if (!session || !isAdminRole(session.user.role)) {
     return <div>Unauthorized</div>;
   }
 
