@@ -167,7 +167,7 @@ export default function NewQuotePage() {
                   name="mode"
                   value={formData.mode}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md text-black bg-white"
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md text-black bg-white  "
                 >
                   <option value="Ex-Works">Ex-Works</option>
                   <option value="FOB">FOB</option>
@@ -186,7 +186,7 @@ export default function NewQuotePage() {
                   name="containerType"
                   value={formData.containerType}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md text-black bg-white"
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md text-black bg-white"
                 >
                   <option value="20ft">20ft Standard</option>
                   <option value="40ft">40ft Standard</option>
