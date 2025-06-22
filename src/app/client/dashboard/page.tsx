@@ -1,5 +1,5 @@
 import DashboardStats from "@/components/client/DashboardStats";
-import RecentShipments from "@/components/client/RecentShipments";
+
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isClientRole } from "@/lib/auth-utils";
@@ -10,6 +10,7 @@ import {
   TruckIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import RecentShipments from "@/components/client/RecentShipments";
 
 export default async function ClientDashboard() {
   const session = await getServerSession(authOptions);
