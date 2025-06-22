@@ -55,6 +55,22 @@ export default function RequestQuoteTab() {
         return "bg-blue-100 text-blue-800";
       case "quote_confirmed":
         return "bg-green-100 text-green-800";
+      case "booking":
+        return "bg-purple-100 text-purple-800";
+      case "booked":
+        return "bg-green-100 text-green-800";
+      case "draft_bl":
+        return "bg-orange-100 text-orange-800";
+      case "final_bl":
+        return "bg-blue-100 text-blue-800";
+      case "in_transit":
+        return "bg-purple-100 text-purple-800";
+      case "loading":
+        return "bg-indigo-100 text-indigo-800";
+      case "sailed":
+        return "bg-blue-100 text-blue-800";
+      case "delivered":
+        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -68,6 +84,22 @@ export default function RequestQuoteTab() {
         return "Quotes Received";
       case "quote_confirmed":
         return "Quote Confirmed";
+      case "booking":
+        return "Booking in Progress";
+      case "booked":
+        return "Booked";
+      case "draft_bl":
+        return "Draft BL Pending";
+      case "final_bl":
+        return "Final BL Ready";
+      case "in_transit":
+        return "In Transit";
+      case "loading":
+        return "Loading";
+      case "sailed":
+        return "Sailed";
+      case "delivered":
+        return "Delivered";
       default:
         return status.replace("_", " ").toUpperCase();
     }
@@ -99,7 +131,7 @@ export default function RequestQuoteTab() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      {/* <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900">Quote Requests</h2>
         <Link
           href="/client/quotes/new"
@@ -107,7 +139,7 @@ export default function RequestQuoteTab() {
         >
           Request New Quote
         </Link>
-      </div>
+      </div> */}
 
       {quoteRequests.length === 0 ? (
         <div className="text-center py-12">
@@ -193,6 +225,20 @@ export default function RequestQuoteTab() {
                     >
                       View Quote
                     </Link>
+                  ) : request.status === "booked" ||
+                    request.status === "in_transit" ||
+                    request.status === "loading" ||
+                    request.status === "sailed" ? (
+                    <Link
+                      href={`/client/shipments/${request.id}`}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                      Track Shipment
+                    </Link>
+                  ) : request.status === "delivered" ? (
+                    <span className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-gray-100">
+                      Completed
+                    </span>
                   ) : (
                     <Link
                       href={`/client/quotes/${request.id}`}

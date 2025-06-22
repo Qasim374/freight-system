@@ -1,8 +1,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isClientRole } from "@/lib/auth-utils";
+import RequestQuoteTab from "@/components/client/dashboard/RequestQuoteTab";
 import Link from "next/link";
-import ClientQuoteTable from "@/components/client/ClientQuoteTable";
 
 export default async function ClientQuotesPage() {
   const session = await getServerSession(authOptions);
@@ -16,10 +16,10 @@ export default async function ClientQuotesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Quote Requests</h1>
-            <p className="text-gray-600 mt-1">
-              Manage your shipping quote requests and vendor responses
-            </p>
+          <h1 className="text-2xl font-bold text-gray-900">Quote Requests</h1>
+          <p className="text-gray-600 mt-1">
+            Manage your shipping quote requests and vendor responses
+          </p>
           </div>
           <Link
             href="/client/quotes/new"
@@ -29,8 +29,8 @@ export default async function ClientQuotesPage() {
           </Link>
         </div>
 
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <ClientQuoteTable clientId={session.user.id} />
+        <div className="bg-white shadow rounded-lg">
+          <RequestQuoteTab />
         </div>
       </div>
     </div>

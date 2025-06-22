@@ -18,12 +18,24 @@ export default function ClientSidebar() {
 
   const navigation = [
     { name: "Dashboard", href: "/client/dashboard", icon: HomeIcon },
-    { name: "Quote Requests", href: "/client/quote-requests", icon: ClipboardDocumentListIcon },
+    {
+      name: "Quote Requests",
+      href: "/client/quotes",
+      icon: ClipboardDocumentListIcon,
+    },
     { name: "New Quote", href: "/client/quotes/new", icon: PlusCircleIcon },
-    { name: "Active Shipments", href: "/client/active-shipments", icon: TruckIcon },
+    {
+      name: "Active Shipments",
+      href: "/client/active-shipments",
+      icon: TruckIcon,
+    },
     { name: "Shipments", href: "/client/shipments", icon: DocumentTextIcon },
     { name: "Invoices", href: "/client/invoices", icon: CurrencyDollarIcon },
-    { name: "Shipment History", href: "/client/shipment-history", icon: ChartBarIcon },
+    {
+      name: "Shipment History",
+      href: "/client/shipment-history",
+      icon: ChartBarIcon,
+    },
   ];
 
   return (
