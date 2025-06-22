@@ -122,11 +122,11 @@ export default function ActiveShipmentsTab() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      {/* <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900">
           Active Shipments
         </h2>
-      </div>
+      </div> */}
 
       {activeShipments.length === 0 ? (
         <div className="text-center py-12">

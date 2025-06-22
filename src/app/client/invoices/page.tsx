@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isClientRole } from "@/lib/auth-utils";
-import InvoicesTab from "@/components/client/dashboard/InvoicesTab";
+import InvoicesTab from "@/components/client/InvoicesTab";
 
 export default async function InvoicesPage() {
   const session = await getServerSession(authOptions);

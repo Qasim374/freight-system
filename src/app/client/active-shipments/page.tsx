@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isClientRole } from "@/lib/auth-utils";
-import ActiveShipmentsTab from "@/components/client/dashboard/ActiveShipmentsTab";
+import ActiveShipmentsTab from "@/components/client/ActiveShipmentsTab";
 
 export default async function ActiveShipmentsPage() {
   const session = await getServerSession(authOptions);

@@ -1,8 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isClientRole } from "@/lib/auth-utils";
-import RequestQuoteTab from "@/components/client/dashboard/RequestQuoteTab";
-
+import RequestQuoteTab from "@/components/client/RequestQuoteTab";
 
 export default async function QuoteRequestsPage() {
   const session = await getServerSession(authOptions);
@@ -27,4 +26,4 @@ export default async function QuoteRequestsPage() {
       </div>
     </div>
   );
-} 
+}
