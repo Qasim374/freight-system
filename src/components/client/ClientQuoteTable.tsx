@@ -166,12 +166,21 @@ export default function ClientQuoteTable({ clientId }: ClientQuoteTableProps) {
                 {formatDate(quote.createdAt)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <Link
-                  href={`/client/quotes/${quote.id}`}
-                  className="text-gray-600 hover:text-gray-900"
-                >
-                  View Details
-                </Link>
+                {quote.status === "quote_confirmed" ? (
+                  <Link
+                    href={`/client/quotes/${quote.id}/result`}
+                    className="text-green-600 hover:text-green-900 font-medium"
+                  >
+                    View Quote
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/client/quotes/${quote.id}`}
+                    className="text-gray-600 hover:text-gray-900"
+                  >
+                    View Details
+                  </Link>
+                )}
               </td>
             </tr>
           ))}

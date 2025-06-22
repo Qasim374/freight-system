@@ -272,6 +272,14 @@ export default function QuoteDetailsPage() {
                     Waiting for Quotes
                   </button>
                 )}
+                {quote.status === "quote_confirmed" && (
+                  <Link
+                    href={`/client/quotes/${quote.id}/result`}
+                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                  >
+                    View Quote Result
+                  </Link>
+                )}
                 {quote.status === "quote_received" && (
                   <Link
                     href={`/client/quotes/${quote.id}/book`}

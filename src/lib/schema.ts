@@ -43,6 +43,7 @@ export const shipments = mysqlTable("shipments", {
     "quote_received",
     "quote_confirmed",
     "booking",
+    "booked",
     "draft_bl",
     "final_bl",
     "in_transit",
