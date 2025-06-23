@@ -192,64 +192,28 @@ export default function ActiveShipmentsTab() {
                       </span>
                     </div>
                   </div>
-
-                  {/* BL Status */}
-                  {["draft_bl", "final_bl"].includes(shipment.status) && (
-                    <div className="bg-white rounded-md p-3 border border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-sm font-medium text-gray-900">
-                            Bill of Lading Status:
-                          </span>
-                          <div className="flex items-center space-x-4 mt-1">
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full ${
-                                shipment.hasDraftBL
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-500"
-                              }`}
-                            >
-                              Draft BL {shipment.hasDraftBL ? "✓" : "Pending"}
-                            </span>
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full ${
-                                shipment.hasFinalBL
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-500"
-                              }`}
-                            >
-                              Final BL {shipment.hasFinalBL ? "✓" : "Pending"}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          {shipment.hasDraftBL && !shipment.hasFinalBL && (
-                            <>
-                              <button className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">
-                                Approve
-                              </button>
-                              <button className="text-xs px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700">
-                                Request Amendment
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="ml-4 flex flex-col space-y-2">
-                  <Link
-                    href={`/client/shipments/${shipment.id}`}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                  >
-                    Track Shipment
-                  </Link>
-                  {shipment.hasDraftBL && (
-                    <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                      View Draft BL
-                    </button>
+                  {/* Conditional navigation based on status - direct redirects */}
+                  {["draft_bl", "final_bl", "booking"].includes(
+                    shipment.status
+                  ) ? (
+                    // BL Workflow actions - direct redirect
+                    <Link
+                      href={`/client/shipments/${shipment.id}/bl-workflow`}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                      Manage BL Workflow
+                    </Link>
+                  ) : (
+                    // Tracking actions for other statuses - direct redirect
+                    <Link
+                      href={`/client/shipments/${shipment.id}/tracking`}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                    >
+                      Track Shipment
+                    </Link>
                   )}
                 </div>
               </div>

@@ -2,64 +2,57 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import AmendmentRequestModal from "./AmendmentRequestModal";
 
-interface ShipmentTrackingData {
+interface BLWorkflowData {
   id: string;
   status: string;
-  carrierReference?: string;
-  eta?: string;
-  sailingDate?: string;
-  loadingDate?: string;
-  deliveredDate?: string;
+  hasDraftBL: boolean;
+  hasFinalBL: boolean;
+  draftBLUrl?: string;
+  finalBLUrl?: string;
   commodity: string;
   containerType: string;
-  finalPrice?: number;
 }
 
-interface ShipmentTrackingProps {
+interface BLWorkflowProps {
   shipmentId: string;
 }
 
-const timelineSteps = [
+const blTimelineSteps = [
   {
-    key: "quote_confirmed",
-    label: "Quote Confirmed",
-    description: "Quote has been confirmed and booking is in progress",
+    key: "booked",
+    label: "Booked",
+    description: "Shipment has been booked and is ready for BL preparation",
   },
   {
-    key: "booking",
-    label: "Booking",
-    description: "Shipment has been booked with the carrier",
+    key: "draft_bl",
+    label: "Draft BL",
+    description: "Draft Bill of Lading has been prepared by vendor",
   },
   {
-    key: "loading",
-    label: "Loading",
-    description: "Container is being loaded at origin",
+    key: "final_bl",
+    label: "Final BL",
+    description: "Bill of Lading has been approved and finalized",
   },
   {
-    key: "sailed",
-    label: "Sailed",
-    description: "Vessel has departed from origin port",
-  },
-  {
-    key: "delivered",
-    label: "Delivered",
-    description: "Shipment has been delivered to destination",
+    key: "in_transit",
+    label: "In Transit",
+    description: "Shipment is now in transit with final BL",
   },
 ];
 
-export default function ShipmentTracking({
+export default function BillOfLadingWorkflow({
   shipmentId,
-}: ShipmentTrackingProps) {
+}: BLWorkflowProps) {
   const { data: session } = useSession();
-  const [trackingData, setTrackingData] = useState<ShipmentTrackingData | null>(
-    null
-  );
+  const [blData, setBlData] = useState<BLWorkflowData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showAmendmentModal, setShowAmendmentModal] = useState(false);
 
   useEffect(() => {
-    const fetchTrackingData = async () => {
+    const fetchBLData = async () => {
       try {
         const response = await fetch(
           `/api/client/shipments/${shipmentId}/tracking`,
@@ -73,42 +66,62 @@ export default function ShipmentTracking({
 
         if (response.ok) {
           const data = await response.json();
-          setTrackingData(data.shipment);
+          setBlData(data.shipment);
         } else {
-          setError("Failed to load tracking data");
+          setError("Failed to load BL data");
         }
       } catch {
-        setError("An error occurred while loading tracking data");
+        setError("An error occurred while loading BL data");
       } finally {
         setLoading(false);
       }
     };
 
     if (session?.user?.id && shipmentId) {
-      fetchTrackingData();
+      fetchBLData();
     }
   }, [session, shipmentId]);
 
   const getCurrentStepIndex = (status: string) => {
-    return timelineSteps.findIndex((step) => step.key === status);
+    return blTimelineSteps.findIndex((step) => step.key === status);
   };
 
   const getStepStatus = (stepKey: string, currentStatus: string) => {
     const currentIndex = getCurrentStepIndex(currentStatus);
-    const stepIndex = timelineSteps.findIndex((step) => step.key === stepKey);
+    const stepIndex = blTimelineSteps.findIndex((step) => step.key === stepKey);
 
     if (stepIndex < currentIndex) return "completed";
     if (stepIndex === currentIndex) return "current";
     return "upcoming";
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "TBD";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  const handleApproveBL = async () => {
+    try {
+      const response = await fetch(
+        `/api/client/shipments/${shipmentId}/approve-bl`,
+        {
+          method: "POST",
+          headers: {
+            "x-user-id": session?.user?.id || "",
+            "x-user-role": session?.user?.role || "",
+          },
+        }
+      );
+
+      if (response.ok) {
+        // Refresh BL data
+        window.location.reload();
+      } else {
+        setError("Failed to approve Bill of Lading");
+      }
+    } catch {
+      setError("An error occurred while approving Bill of Lading");
+    }
+  };
+
+  const handleAmendmentSuccess = () => {
+    // Refresh BL data after amendment request
+    window.location.reload();
   };
 
   if (loading) {
@@ -127,10 +140,10 @@ export default function ShipmentTracking({
     );
   }
 
-  if (!trackingData) {
+  if (!blData) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-500">No tracking data available</p>
+        <p className="text-gray-500">No BL data available</p>
       </div>
     );
   }
@@ -139,42 +152,62 @@ export default function ShipmentTracking({
     <div className="bg-white shadow rounded-lg p-6">
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">
-          Shipment Tracking
+          Bill of Lading Workflow
         </h2>
         <p className="text-gray-600">
-          Track your shipment&apos;s journey from origin to destination
+          Review and approve your Bill of Lading documents
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-4">
-          <div>
-            <span className="text-gray-500">Carrier Reference:</span>
-            <span className="ml-2 font-medium text-gray-900">
-              {trackingData.carrierReference || "Pending"}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-500">ETA:</span>
-            <span className="ml-2 font-medium text-gray-900">
-              {formatDate(trackingData.eta)}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-500">Final Price:</span>
-            <span className="ml-2 font-medium text-gray-900">
-              {trackingData.finalPrice !== undefined &&
-              trackingData.finalPrice !== null
-                ? `$${Number(trackingData.finalPrice).toFixed(2)}`
-                : "TBD"}
-            </span>
-          </div>
-        </div>
       </div>
 
-      {/* Shipment Timeline */}
+      {/* BL Actions */}
+      {["draft_bl", "final_bl"].includes(blData.status) && (
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-medium text-gray-900 mb-3">
+            Bill of Lading Actions
+          </h3>
+          <div className="flex flex-wrap gap-3">
+            {blData.hasDraftBL && (
+              <button
+                onClick={() => window.open(blData.draftBLUrl, "_blank")}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              >
+                View Draft BL
+              </button>
+            )}
+            {blData.hasFinalBL && (
+              <button
+                onClick={() => window.open(blData.finalBLUrl, "_blank")}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                View Final BL
+              </button>
+            )}
+            {blData.status === "draft_bl" && blData.hasDraftBL && (
+              <>
+                <button
+                  onClick={handleApproveBL}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Approve BL
+                </button>
+                <button
+                  onClick={() => setShowAmendmentModal(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                >
+                  Request Amendment
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* BL Timeline */}
       <div className="relative">
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
 
-        {timelineSteps.map((step, index) => {
-          const status = getStepStatus(step.key, trackingData.status);
+        {blTimelineSteps.map((step, index) => {
+          const status = getStepStatus(step.key, blData.status);
           const isCompleted = status === "completed";
           const isCurrent = status === "current";
 
@@ -226,20 +259,6 @@ export default function ShipmentTracking({
                 <div className="text-sm text-gray-500 mt-1">
                   {step.description}
                 </div>
-                {/* Show dates for completed steps */}
-                {isCompleted && (
-                  <div className="text-xs text-gray-400 mt-1">
-                    {step.key === "loading" && trackingData.loadingDate && (
-                      <>Loaded: {formatDate(trackingData.loadingDate)}</>
-                    )}
-                    {step.key === "sailed" && trackingData.sailingDate && (
-                      <>Sailed: {formatDate(trackingData.sailingDate)}</>
-                    )}
-                    {step.key === "delivered" && trackingData.deliveredDate && (
-                      <>Delivered: {formatDate(trackingData.deliveredDate)}</>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           );
@@ -255,17 +274,25 @@ export default function ShipmentTracking({
           <div>
             <span className="text-gray-500">Commodity:</span>
             <span className="ml-2 font-medium text-gray-900">
-              {trackingData.commodity}
+              {blData.commodity}
             </span>
           </div>
           <div>
             <span className="text-gray-500">Container Type:</span>
             <span className="ml-2 font-medium text-gray-900">
-              {trackingData.containerType}
+              {blData.containerType}
             </span>
           </div>
         </div>
       </div>
+
+      {/* Amendment Request Modal */}
+      <AmendmentRequestModal
+        shipmentId={shipmentId}
+        isOpen={showAmendmentModal}
+        onClose={() => setShowAmendmentModal(false)}
+        onSuccess={handleAmendmentSuccess}
+      />
     </div>
   );
 }

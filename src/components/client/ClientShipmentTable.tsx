@@ -66,6 +66,12 @@ export default function ClientShipmentTable({
         return "bg-blue-100 text-blue-800";
       case "booking":
         return "bg-green-100 text-green-800";
+      case "draft_bl":
+        return "bg-purple-100 text-purple-800";
+      case "final_bl":
+        return "bg-indigo-100 text-indigo-800";
+      case "in_transit":
+        return "bg-orange-100 text-orange-800";
       case "loading":
         return "bg-purple-100 text-purple-800";
       case "sailed":
@@ -83,6 +89,12 @@ export default function ClientShipmentTable({
         return "QUOTE CONFIRMED";
       case "booking":
         return "BOOKING";
+      case "draft_bl":
+        return "DRAFT BL";
+      case "final_bl":
+        return "FINAL BL";
+      case "in_transit":
+        return "IN TRANSIT";
       case "loading":
         return "LOADING";
       case "sailed":
@@ -189,12 +201,24 @@ export default function ClientShipmentTable({
                   : "TBD"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <Link
-                  href={`/client/shipments/${shipment.id}`}
-                  className="text-gray-600 hover:text-gray-900"
-                >
-                  Track Shipment
-                </Link>
+                {/* Conditional buttons based on status */}
+                {["draft_bl", "final_bl", "booking"].includes(
+                  shipment.status
+                ) ? (
+                  <Link
+                    href={`/client/shipments/${shipment.id}/bl-workflow`}
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    Manage BL Workflow
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/client/shipments/${shipment.id}/tracking`}
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                  >
+                    Track Shipment
+                  </Link>
+                )}
               </td>
             </tr>
           ))}

@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isClientRole } from "@/lib/auth-utils";
-import ShipmentTracking from "@/components/client/ShipmentTracking";
+import ShipmentNavigation from "@/components/client/ShipmentNavigation";
 
 interface ShipmentDetailPageProps {
   params: {
@@ -21,16 +21,7 @@ export default async function ShipmentDetailPage({
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Shipment #{params.id.substring(0, 8)}
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Track your shipment progress and status
-          </p>
-        </div>
-
-        <ShipmentTracking shipmentId={params.id} />
+        <ShipmentNavigation shipmentId={params.id} />
       </div>
     </div>
   );
