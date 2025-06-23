@@ -23,6 +23,8 @@ export default function BLApprovalTable() {
   const [selectedVersion, setSelectedVersion] = useState<"draft" | "final">(
     "draft"
   );
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedBL, setSelectedBL] = useState<BillOfLading | null>(null);
 
   useEffect(() => {
     const fetchBillsOfLading = async () => {
@@ -112,6 +114,11 @@ export default function BLApprovalTable() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleViewDetails = (bl: BillOfLading) => {
+    setSelectedBL(bl);
+    setShowDetailsModal(true);
   };
 
   if (loading) {
@@ -266,8 +273,11 @@ export default function BLApprovalTable() {
                     </button>
                   </>
                 )}
-                <button className="text-gray-600 hover:text-gray-900">
-                  View Details
+                <button
+                  onClick={() => handleViewDetails(bl)}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Details
                 </button>
               </td>
             </tr>
@@ -278,6 +288,122 @@ export default function BLApprovalTable() {
       {billsOfLading.length === 0 && (
         <div className="text-center py-12 text-gray-500">
           No {selectedVersion} bills of lading found
+        </div>
+      )}
+
+      {/* BL Details Modal */}
+      {showDetailsModal && selectedBL && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Bill of Lading Details
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    BL ID
+                  </label>
+                  <p className="text-sm text-gray-900">#{selectedBL.id}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Shipment ID
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedBL.shipmentId}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Client
+                  </label>
+                  <p className="text-sm text-gray-900">{selectedBL.client}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Container Type
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedBL.containerType}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Commodity
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedBL.commodity}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Version
+                  </label>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      selectedBL.version === "draft"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-blue-100 text-blue-800"
+                    }`}
+                  >
+                    {selectedBL.version.toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Uploaded By
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    User #{selectedBL.uploadedBy}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Upload Date
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {new Date(selectedBL.uploadedAt).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Status
+                  </label>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      selectedBL.approved
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {selectedBL.approved ? "APPROVED" : "PENDING"}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    File
+                  </label>
+                  <button
+                    onClick={() =>
+                      downloadBL(selectedBL.fileUrl, selectedBL.shipmentId)
+                    }
+                    className="text-blue-600 hover:text-blue-900 text-sm"
+                  >
+                    Download BL Document
+                  </button>
+                </div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

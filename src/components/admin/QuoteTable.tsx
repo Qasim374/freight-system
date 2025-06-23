@@ -40,6 +40,7 @@ export default function QuoteTable() {
   const [markup, setMarkup] = useState(14); // Default 14% markup
   const [showMarkupModal, setShowMarkupModal] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   useEffect(() => {
     const fetchQuotes = async () => {
@@ -146,6 +147,11 @@ export default function QuoteTable() {
 
   const calculateClientPrice = (cost: number) => {
     return cost * (1 + markup / 100);
+  };
+
+  const handleViewDetails = (quote: Quote) => {
+    setSelectedQuote(quote);
+    setShowDetailsModal(true);
   };
 
   if (loading) {
@@ -312,8 +318,11 @@ export default function QuoteTable() {
                             </button>
                           </>
                         )}
-                        <button className="text-gray-600 hover:text-gray-900">
-                          View Details
+                        <button
+                          onClick={() => handleViewDetails(quote)}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
+                          Details
                         </button>
                       </td>
                     </tr>
@@ -380,6 +389,138 @@ export default function QuoteTable() {
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                 >
                   Override & Approve
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quote Details Modal */}
+      {showDetailsModal && selectedQuote && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Quote Details
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Quote ID
+                  </label>
+                  <p className="text-sm text-gray-900">#{selectedQuote.id}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Shipment ID
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedQuote.shipmentId}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Client
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedQuote.client}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Vendor
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedQuote.vendorName ||
+                      `Vendor ${selectedQuote.vendorId}`}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Container Type
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedQuote.containerType}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Vendor Cost
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    ${selectedQuote.cost.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Client Price (with {markup}% markup)
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    ${calculateClientPrice(selectedQuote.cost).toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Margin
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    $
+                    {(
+                      calculateClientPrice(selectedQuote.cost) -
+                      selectedQuote.cost
+                    ).toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Sailing Date
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {new Date(selectedQuote.sailingDate).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Carrier
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedQuote.carrierName}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Submitted
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedQuote.submittedAt
+                      ? new Date(selectedQuote.submittedAt).toLocaleString()
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Status
+                  </label>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      selectedQuote.isWinner
+                        ? "bg-green-100 text-green-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {selectedQuote.isWinner
+                      ? "WINNER"
+                      : selectedQuote.status.replace(/_/g, " ").toUpperCase()}
+                  </span>
+                </div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                >
+                  Close
                 </button>
               </div>
             </div>
