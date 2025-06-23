@@ -1,22 +1,39 @@
-import { db } from "@/lib/db";
-import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { db, testConnection } from "@/lib/db";
+import { eq, and } from "drizzle-orm";
 import { invoices, shipments, users } from "@/lib/schema";
 
-type InvoiceType = "client" | "vendor";
-
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const typeParam = searchParams.get("type") || "client";
-
-  // Validate type parameter
-  const validTypes: InvoiceType[] = ["client", "vendor"];
-  const type: InvoiceType = validTypes.includes(typeParam as InvoiceType)
-    ? (typeParam as InvoiceType)
-    : "client";
-
+export async function GET(request: NextRequest) {
   try {
-    const invoiceData = await db
+    // Check authentication
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user.role.includes("admin")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Test database connection
+    const isConnected = await testConnection();
+
+    if (!isConnected) {
+      return NextResponse.json(
+        { error: "Database connection failed" },
+        { status: 503 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const typeParam = searchParams.get("type") || "client";
+    const statusParam = searchParams.get("status") || "all";
+
+    // Validate type parameter
+    const validTypes = ["client", "vendor"];
+    const type = validTypes.includes(typeParam) ? typeParam : "client";
+
+    // Build query
+    let query = db
       .select({
         id: invoices.id,
         shipmentId: invoices.shipmentId,
@@ -35,38 +52,81 @@ export async function GET(request: Request) {
       .innerJoin(users, eq(shipments.clientId, users.id))
       .where(eq(invoices.type, type));
 
-    console.log(invoiceData);
-    return NextResponse.json(
-      invoiceData.map((i) => ({
-        id: i.id,
-        shipmentId: i.shipmentId,
-        amount: Number(i.amount),
-        type: i.type,
-        status: i.status,
-        dueDate: i.dueDate ? i.dueDate.toISOString() : null,
-        createdAt: i.createdAt?.toISOString() || new Date().toISOString(),
-        client: i.clientCompany || i.clientEmail,
-        containerType: i.containerType || "N/A",
-        commodity: i.commodity || "N/A",
-      }))
-    );
+    // Apply status filter if not "all"
+    if (statusParam !== "all") {
+      query = query.where(eq(invoices.status, statusParam));
+    }
+
+    const invoicesData = await query;
+
+    // Transform the data to match the expected format
+    const transformedInvoices = invoicesData.map((invoice) => ({
+      id: invoice.id,
+      shipmentId: invoice.shipmentId,
+      amount: Number(invoice.amount),
+      type: invoice.type,
+      status: invoice.status,
+      dueDate: invoice.dueDate?.toISOString() || null,
+      createdAt: invoice.createdAt.toISOString(),
+      client: invoice.clientCompany || invoice.clientEmail,
+      containerType: invoice.containerType || "N/A",
+      commodity: invoice.commodity || "N/A",
+    }));
+
+    return NextResponse.json(transformedInvoices);
   } catch (error) {
     console.error("Error fetching invoices:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Failed to fetch invoices" },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
-    const { invoiceId, action } = await request.json();
+    // Check authentication
+    const session = await getServerSession(authOptions);
 
-    if (action === "paid") {
+    if (!session || !session.user.role.includes("admin")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Test database connection
+    const isConnected = await testConnection();
+
+    if (!isConnected) {
+      return NextResponse.json(
+        { error: "Database connection failed" },
+        { status: 503 }
+      );
+    }
+
+    const body = await request.json();
+    const { invoiceId, action } = body;
+
+    if (!invoiceId || !action) {
+      return NextResponse.json(
+        { error: "Missing invoiceId or action" },
+        { status: 400 }
+      );
+    }
+
+    if (action === "mark_paid") {
+      // Update the invoice to mark it as paid
       await db
         .update(invoices)
         .set({ status: "paid" })
+        .where(eq(invoices.id, invoiceId));
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "mark_unpaid") {
+      // Update the invoice to mark it as unpaid
+      await db
+        .update(invoices)
+        .set({ status: "unpaid" })
         .where(eq(invoices.id, invoiceId));
 
       return NextResponse.json({ success: true });
@@ -76,7 +136,7 @@ export async function PUT(request: Request) {
   } catch (error) {
     console.error("Error updating invoice:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Failed to update invoice" },
       { status: 500 }
     );
   }

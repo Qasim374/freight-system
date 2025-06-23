@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { db, testConnection } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { billsOfLading, shipments, users } from "@/lib/schema";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -24,13 +24,23 @@ export async function GET() {
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const versionParam = searchParams.get("version") || "draft";
+
+    // Validate version parameter
+    const validVersions = ["draft", "final"];
+    const version = validVersions.includes(versionParam)
+      ? versionParam
+      : "draft";
+
     // Fetch bills of lading with shipment and client information
-    const blsData = await db
+    const blData = await db
       .select({
         id: billsOfLading.id,
         shipmentId: billsOfLading.shipmentId,
         version: billsOfLading.version,
         fileUrl: billsOfLading.fileUrl,
+        uploadedBy: billsOfLading.uploadedBy,
         approved: billsOfLading.approved,
         uploadedAt: billsOfLading.uploadedAt,
         clientEmail: users.email,
@@ -41,16 +51,17 @@ export async function GET() {
       .from(billsOfLading)
       .innerJoin(shipments, eq(billsOfLading.shipmentId, shipments.id))
       .innerJoin(users, eq(shipments.clientId, users.id))
-      .orderBy(billsOfLading.uploadedAt);
+      .where(eq(billsOfLading.version, version));
 
     // Transform the data to match the expected format
-    const transformedBLs = blsData.map((bl) => ({
+    const transformedBLs = blData.map((bl) => ({
       id: bl.id,
       shipmentId: bl.shipmentId,
       version: bl.version,
       fileUrl: bl.fileUrl,
+      uploadedBy: bl.uploadedBy,
       approved: bl.approved,
-      uploadedAt: bl.uploadedAt?.toISOString() || new Date().toISOString(),
+      uploadedAt: bl.uploadedAt.toISOString(),
       client: bl.clientCompany || bl.clientEmail,
       containerType: bl.containerType || "N/A",
       commodity: bl.commodity || "N/A",
@@ -102,25 +113,15 @@ export async function PUT(request: NextRequest) {
         .set({ approved: true })
         .where(eq(billsOfLading.id, blId));
 
-      // Get the shipment ID for this BL
-      const blData = await db
-        .select({
-          shipmentId: billsOfLading.shipmentId,
-          version: billsOfLading.version,
-        })
-        .from(billsOfLading)
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "reject") {
+      // Update the bill of lading to mark it as not approved
+      await db
+        .update(billsOfLading)
+        .set({ approved: false })
         .where(eq(billsOfLading.id, blId));
-
-      if (blData.length > 0) {
-        // Update the shipment status based on BL version
-        const newStatus =
-          blData[0].version === "final" ? "final_bl" : "draft_bl";
-
-        await db
-          .update(shipments)
-          .set({ status: newStatus })
-          .where(eq(shipments.id, blData[0].shipmentId));
-      }
 
       return NextResponse.json({ success: true });
     }

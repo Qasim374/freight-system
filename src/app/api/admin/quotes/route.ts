@@ -2,16 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { db, testConnection } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { quotes, shipments, users } from "@/lib/schema";
 
 type ShipmentStatus =
   | "quote_requested"
   | "quote_received"
+  | "quote_confirmed"
+  | "booking"
   | "booked"
   | "draft_bl"
   | "final_bl"
   | "in_transit"
+  | "loading"
+  | "sailed"
   | "delivered";
 
 export async function GET(request: NextRequest) {
@@ -40,10 +44,14 @@ export async function GET(request: NextRequest) {
     const validStatuses: ShipmentStatus[] = [
       "quote_requested",
       "quote_received",
+      "quote_confirmed",
+      "booking",
       "booked",
       "draft_bl",
       "final_bl",
       "in_transit",
+      "loading",
+      "sailed",
       "delivered",
     ];
     const status: ShipmentStatus = validStatuses.includes(
@@ -62,10 +70,13 @@ export async function GET(request: NextRequest) {
         carrierName: quotes.carrierName,
         submittedAt: quotes.submittedAt,
         isWinner: quotes.isWinner,
+        vendorId: quotes.vendorId,
         containerType: shipments.containerType,
         commodity: shipments.commodity,
         clientEmail: users.email,
         clientCompany: users.company,
+        vendorEmail: users.email,
+        vendorCompany: users.company,
       })
       .from(quotes)
       .innerJoin(shipments, eq(quotes.shipmentId, shipments.id))
@@ -82,6 +93,10 @@ export async function GET(request: NextRequest) {
       sailingDate: quote.sailingDate.toISOString(),
       carrierName: quote.carrierName,
       status: status,
+      vendorId: quote.vendorId,
+      vendorName: quote.vendorCompany || `Vendor ${quote.vendorId}`,
+      submittedAt: quote.submittedAt.toISOString(),
+      isWinner: quote.isWinner,
     }));
 
     return NextResponse.json(transformedQuotes);
@@ -114,7 +129,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { quoteId, action } = body;
+    const { quoteId, action, markup = 0.14 } = body;
 
     if (!quoteId || !action) {
       return NextResponse.json(
@@ -124,27 +139,83 @@ export async function PUT(request: NextRequest) {
     }
 
     if (action === "approve") {
+      // Get the quote details first
+      const quoteData = await db
+        .select({
+          shipmentId: quotes.shipmentId,
+          cost: quotes.cost,
+        })
+        .from(quotes)
+        .where(eq(quotes.id, quoteId));
+
+      if (quoteData.length === 0) {
+        return NextResponse.json({ error: "Quote not found" }, { status: 404 });
+      }
+
+      const quote = quoteData[0];
+      const clientPrice = Number(quote.cost) * (1 + markup);
+
       // Update the quote to mark it as winner
       await db
         .update(quotes)
         .set({ isWinner: true })
         .where(eq(quotes.id, quoteId));
 
-      // Get the shipment ID for this quote
+      // Update the shipment status to booked and set final price
+      await db
+        .update(shipments)
+        .set({
+          status: "booked",
+          finalPrice: clientPrice,
+          winningQuoteId: quoteId,
+        })
+        .where(eq(shipments.id, quote.shipmentId));
+
+      return NextResponse.json({
+        success: true,
+        clientPrice: clientPrice,
+        markup: markup,
+      });
+    }
+
+    if (action === "override") {
+      // Get the quote details first
       const quoteData = await db
-        .select({ shipmentId: quotes.shipmentId })
+        .select({
+          shipmentId: quotes.shipmentId,
+          cost: quotes.cost,
+        })
         .from(quotes)
         .where(eq(quotes.id, quoteId));
 
-      if (quoteData.length > 0) {
-        // Update the shipment status to booked
-        await db
-          .update(shipments)
-          .set({ status: "booked" })
-          .where(eq(shipments.id, quoteData[0].shipmentId));
+      if (quoteData.length === 0) {
+        return NextResponse.json({ error: "Quote not found" }, { status: 404 });
       }
 
-      return NextResponse.json({ success: true });
+      const quote = quoteData[0];
+      const clientPrice = Number(quote.cost) * (1 + markup);
+
+      // Update the quote to mark it as winner with custom markup
+      await db
+        .update(quotes)
+        .set({ isWinner: true })
+        .where(eq(quotes.id, quoteId));
+
+      // Update the shipment status to booked and set final price
+      await db
+        .update(shipments)
+        .set({
+          status: "booked",
+          finalPrice: clientPrice,
+          winningQuoteId: quoteId,
+        })
+        .where(eq(shipments.id, quote.shipmentId));
+
+      return NextResponse.json({
+        success: true,
+        clientPrice: clientPrice,
+        markup: markup,
+      });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });

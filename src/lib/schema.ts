@@ -102,7 +102,7 @@ export const amendments = mysqlTable("amendments", {
   id: int("id").autoincrement().primaryKey(),
   shipmentId: varchar("shipment_id", { length: 36 }).notNull(),
   reason: text("reason").notNull(),
-  extraCost: decimal("extra_cost", { precision: 10, scale: 2 }).default(0.0),
+  extraCost: decimal("extra_cost", { precision: 10, scale: 2 }).default("0.00"),
   delayDays: int("delay_days").default(0),
   status: mysqlEnum("status", [
     "requested",
