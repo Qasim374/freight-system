@@ -93,6 +93,7 @@ export const billsOfLading = mysqlTable("bills_of_lading", {
   shipmentId: varchar("shipment_id", { length: 36 }).notNull(),
   version: mysqlEnum("version", ["draft", "final"]).notNull(),
   fileUrl: varchar("file_url", { length: 512 }).notNull(),
+  uploadedBy: int("uploaded_by").notNull(),
   approved: boolean("approved").default(false),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
