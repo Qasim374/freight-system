@@ -13,6 +13,10 @@ interface QuoteResult {
   containerType: string;
   numberOfContainers: number;
   weightPerContainer: number;
+  quoteRequestedAt: string;
+  vendorQuotesReceived: number;
+  totalVendors: number;
+  timeRemaining?: number; // in seconds
 }
 
 interface QuoteResultScreenProps {
@@ -28,6 +32,7 @@ export default function QuoteResultScreen({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isBooking, setIsBooking] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
 
   useEffect(() => {
     const fetchQuoteResult = async () => {
@@ -45,6 +50,20 @@ export default function QuoteResultScreen({
         if (response.ok) {
           const data = await response.json();
           setQuoteResult(data.quoteResult);
+
+          // Calculate time remaining
+          if (data.quoteResult.quoteRequestedAt) {
+            const requestedAt = new Date(data.quoteResult.quoteRequestedAt);
+            const deadline = new Date(
+              requestedAt.getTime() + 48 * 60 * 60 * 1000
+            ); // 48 hours
+            const now = new Date();
+            const remaining = Math.max(
+              0,
+              Math.floor((deadline.getTime() - now.getTime()) / 1000)
+            );
+            setTimeRemaining(remaining);
+          }
         } else {
           setError("Failed to load quote result");
         }
@@ -59,6 +78,25 @@ export default function QuoteResultScreen({
       fetchQuoteResult();
     }
   }, [session, shipmentId]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (timeRemaining > 0) {
+      const timer = setInterval(() => {
+        setTimeRemaining((prev) => Math.max(0, prev - 1));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [timeRemaining]);
+
+  const formatTimeRemaining = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const handleBookNow = async () => {
     if (!quoteResult) return;
@@ -126,14 +164,50 @@ export default function QuoteResultScreen({
     );
   }
 
+  const isTimerExpired = timeRemaining <= 0;
+  const hasEnoughQuotes = quoteResult.vendorQuotesReceived >= 3;
+  const canBook = isTimerExpired || hasEnoughQuotes;
+
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Quote Result</h2>
         <p className="text-gray-600">
-          Your quote request has been processed and vendors have submitted their
-          rates.
+          {hasEnoughQuotes
+            ? "3 vendor quotes received! You can now book your shipment."
+            : "Vendors are still submitting quotes. You can book once 3 quotes are received or 48 hours elapse."}
         </p>
+      </div>
+
+      {/* 48-Hour Timer */}
+      <div
+        className={`border rounded-lg p-4 mb-6 ${
+          isTimerExpired
+            ? "bg-red-50 border-red-200"
+            : "bg-yellow-50 border-yellow-200"
+        }`}
+      >
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {isTimerExpired
+              ? "48-Hour Timer Expired"
+              : "48-Hour Vendor Bidding Timer"}
+          </h3>
+          {!isTimerExpired && (
+            <div className="text-2xl font-mono font-bold text-yellow-700 mb-2">
+              {formatTimeRemaining(timeRemaining)}
+            </div>
+          )}
+          <div className="text-sm text-gray-600">
+            {quoteResult.vendorQuotesReceived} of {quoteResult.totalVendors}{" "}
+            vendor quotes received
+          </div>
+          {isTimerExpired && (
+            <div className="text-sm text-red-600 font-medium mt-2">
+              Timer expired. You can now book with available quotes.
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Final Price */}
@@ -203,14 +277,27 @@ export default function QuoteResultScreen({
           Market Comparison
         </h3>
         <p className="text-blue-700">{quoteResult.marketComparison}</p>
+        <div className="mt-2 text-sm text-blue-600">
+          <span className="font-medium">
+            Royal Gulf's quote is{" "}
+            {quoteResult.marketComparison.includes("below")
+              ? "below"
+              : "in range with"}{" "}
+            market rates.
+          </span>
+        </div>
       </div>
 
       {/* Book Now Button */}
       <div className="text-center">
         <button
           onClick={handleBookNow}
-          disabled={isBooking}
-          className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isBooking || !canBook}
+          className={`inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+            canBook
+              ? "bg-gray-600 hover:bg-gray-700 focus:ring-gray-500"
+              : "bg-gray-400 cursor-not-allowed"
+          }`}
         >
           {isBooking ? (
             <>
@@ -236,14 +323,24 @@ export default function QuoteResultScreen({
               </svg>
               Booking...
             </>
+          ) : !canBook ? (
+            "Waiting for Quotes..."
           ) : (
             "Book Now"
           )}
         </button>
-        <p className="text-sm text-gray-500 mt-2">
-          By clicking "Book Now", you agree to proceed with this shipment at the
-          quoted price.
-        </p>
+        {canBook && (
+          <p className="text-sm text-gray-500 mt-2">
+            By clicking "Book Now", you agree to proceed with this shipment at
+            the quoted price.
+          </p>
+        )}
+        {!canBook && (
+          <p className="text-sm text-gray-500 mt-2">
+            You can book once 3 vendor quotes are received or the 48-hour timer
+            expires.
+          </p>
+        )}
       </div>
     </div>
   );
