@@ -8,9 +8,9 @@ import {
   TruckIcon,
   DocumentTextIcon,
   CurrencyDollarIcon,
-  ClockIcon,
   ClipboardDocumentListIcon,
   ChartBarIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 export default function ClientSidebar() {
@@ -31,6 +31,11 @@ export default function ClientSidebar() {
     },
     { name: "Shipments", href: "/client/shipments", icon: DocumentTextIcon },
     { name: "Invoices", href: "/client/invoices", icon: CurrencyDollarIcon },
+    {
+      name: "Amendments",
+      href: "/client/amendments",
+      icon: ExclamationTriangleIcon,
+    },
     {
       name: "Shipment History",
       href: "/client/shipment-history",

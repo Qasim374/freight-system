@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import AmendmentRequestModal from "./AmendmentRequestModal";
 
 interface ShipmentTrackingData {
   id: string;
@@ -14,6 +15,10 @@ interface ShipmentTrackingData {
   commodity: string;
   containerType: string;
   finalPrice?: number;
+  hasDraftBL?: boolean;
+  hasFinalBL?: boolean;
+  draftBLUrl?: string;
+  finalBLUrl?: string;
 }
 
 interface ShipmentTrackingProps {
@@ -57,6 +62,7 @@ export default function ShipmentTracking({
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showAmendmentModal, setShowAmendmentModal] = useState(false);
 
   useEffect(() => {
     const fetchTrackingData = async () => {
@@ -109,6 +115,35 @@ export default function ShipmentTracking({
       month: "short",
       day: "numeric",
     });
+  };
+
+  const handleApproveBL = async () => {
+    try {
+      const response = await fetch(
+        `/api/client/shipments/${shipmentId}/approve-bl`,
+        {
+          method: "POST",
+          headers: {
+            "x-user-id": session?.user?.id || "",
+            "x-user-role": session?.user?.role || "",
+          },
+        }
+      );
+
+      if (response.ok) {
+        // Refresh tracking data
+        window.location.reload();
+      } else {
+        setError("Failed to approve Bill of Lading");
+      }
+    } catch {
+      setError("An error occurred while approving Bill of Lading");
+    }
+  };
+
+  const handleAmendmentSuccess = () => {
+    // Refresh tracking data after amendment request
+    window.location.reload();
   };
 
   if (loading) {
@@ -165,7 +200,42 @@ export default function ShipmentTracking({
         </div>
       </div>
 
-      {/* Timeline */}
+      {/* Bill of Lading Actions - Only show for BL-related statuses */}
+      {["draft_bl", "final_bl"].includes(trackingData.status) && (
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-medium text-gray-900 mb-3">
+            Bill of Lading Actions
+          </h3>
+          <div className="flex flex-wrap gap-3">
+            {trackingData.hasDraftBL && (
+              <button
+                onClick={() => window.open(trackingData.draftBLUrl, "_blank")}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              >
+                View Draft BL
+              </button>
+            )}
+            {trackingData.status === "draft_bl" && trackingData.hasDraftBL && (
+              <>
+                <button
+                  onClick={handleApproveBL}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => setShowAmendmentModal(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                >
+                  Request Amendment
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Shipment Timeline */}
       <div className="relative">
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
 
@@ -265,6 +335,14 @@ export default function ShipmentTracking({
           </div>
         </div>
       </div>
+
+      {/* Amendment Request Modal */}
+      <AmendmentRequestModal
+        shipmentId={shipmentId}
+        isOpen={showAmendmentModal}
+        onClose={() => setShowAmendmentModal(false)}
+        onSuccess={handleAmendmentSuccess}
+      />
     </div>
   );
 }

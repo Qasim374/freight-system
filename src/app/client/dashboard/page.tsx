@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import DashboardStats from "@/components/client/DashboardStats";
 import RecentShipments from "@/components/client/RecentShipments";
+import AmendmentNotifications from "@/components/client/AmendmentNotifications";
 
 interface DashboardData {
   quoteRequests: number;
@@ -108,6 +109,9 @@ export default function ClientDashboard() {
           </p>
         </div>
 
+        {/* Amendment Notifications */}
+        <AmendmentNotifications />
+
         {/* Stats */}
         <DashboardStats
           quoteRequests={stats.quoteRequests}
@@ -121,7 +125,7 @@ export default function ClientDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
           <Link
             href="/client/quotes/new"
             className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow"
@@ -179,6 +183,25 @@ export default function ClientDashboard() {
                   Track Shipments
                 </h3>
                 <p className="text-gray-500">Monitor your active shipments</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/client/amendments"
+            className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-orange-600 rounded-md flex items-center justify-center">
+                  <span className="text-white text-lg">⚠️</span>
+                </div>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Amendments
+                </h3>
+                <p className="text-gray-500">Manage amendment requests</p>
               </div>
             </div>
           </Link>

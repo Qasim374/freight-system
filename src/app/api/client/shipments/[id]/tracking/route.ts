@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { shipments, quotes } from "@/lib/schema";
+import { shipments, quotes, billsOfLading } from "@/lib/schema";
 import { isClientRole } from "@/lib/auth-utils";
 
 // GET - Get shipment tracking data
@@ -32,6 +32,8 @@ export async function GET(
         deliveredDate: shipments.deliveredDate,
         finalPrice: shipments.finalPrice,
         winningQuoteId: shipments.winningQuoteId,
+        hasDraftBL: shipments.hasDraftBL,
+        hasFinalBL: shipments.hasFinalBL,
       })
       .from(shipments)
       .where(eq(shipments.id, shipmentId))
@@ -58,6 +60,27 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Get Bill of Lading information
+    const blData = await db
+      .select({
+        version: billsOfLading.version,
+        fileUrl: billsOfLading.fileUrl,
+        approved: billsOfLading.approved,
+      })
+      .from(billsOfLading)
+      .where(eq(billsOfLading.shipmentId, shipmentId));
+
+    let draftBLUrl = null;
+    let finalBLUrl = null;
+
+    blData.forEach((bl) => {
+      if (bl.version === "draft") {
+        draftBLUrl = bl.fileUrl;
+      } else if (bl.version === "final") {
+        finalBLUrl = bl.fileUrl;
+      }
+    });
+
     // If there's a winning quote, get additional details
     let quoteDetails = null;
     if (shipment.winningQuoteId) {
@@ -80,6 +103,8 @@ export async function GET(
     return NextResponse.json({
       shipment: {
         ...shipment,
+        draftBLUrl,
+        finalBLUrl,
         quoteDetails,
       },
     });
