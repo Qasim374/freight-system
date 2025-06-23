@@ -192,8 +192,9 @@ export default function ShipmentTracking({
           <div>
             <span className="text-gray-500">Final Price:</span>
             <span className="ml-2 font-medium text-gray-900">
-              {trackingData.finalPrice
-                ? `$${trackingData.finalPrice.toFixed(2)}`
+              {trackingData.finalPrice !== undefined &&
+              trackingData.finalPrice !== null
+                ? `$${Number(trackingData.finalPrice).toFixed(2)}`
                 : "TBD"}
             </span>
           </div>
