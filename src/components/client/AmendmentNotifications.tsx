@@ -43,7 +43,16 @@ export default function AmendmentNotifications() {
 
       if (response.ok) {
         const data = await response.json();
-        setPendingAmendments(data.amendments || []);
+
+        // Only show amendments that are in "client_review" status
+        const clientReviewAmendments = (data.amendments || []).filter(
+          (amendment: AmendmentNotification) =>
+            amendment.status === "client_review"
+        );
+
+        setPendingAmendments(clientReviewAmendments);
+      } else {
+        console.error("Failed to fetch pending amendments:", response.status);
       }
     } catch (error) {
       console.error("Failed to fetch pending amendments:", error);
