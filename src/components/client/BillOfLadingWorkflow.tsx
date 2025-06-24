@@ -5,14 +5,18 @@ import { useSession } from "next-auth/react";
 import AmendmentRequestModal from "./AmendmentRequestModal";
 
 interface BLWorkflowData {
-  id: string;
-  status: string;
+  id: number;
+  shipmentStatus: string;
+  trackingStatus: string;
   hasDraftBL: boolean;
   hasFinalBL: boolean;
   draftBLUrl?: string;
   finalBLUrl?: string;
   commodity: string;
   containerType: string;
+  origin: string;
+  destination: string;
+  mode: string;
 }
 
 interface BLWorkflowProps {
@@ -26,12 +30,12 @@ const blTimelineSteps = [
     description: "Shipment has been booked and is ready for BL preparation",
   },
   {
-    key: "draft_bl",
+    key: "draft_bl_uploaded",
     label: "Draft BL",
     description: "Draft Bill of Lading has been prepared by vendor",
   },
   {
-    key: "final_bl",
+    key: "final_bl_uploaded",
     label: "Final BL",
     description: "Bill of Lading has been approved and finalized",
   },
@@ -42,9 +46,7 @@ const blTimelineSteps = [
   },
 ];
 
-export default function BillOfLadingWorkflow({
-  shipmentId,
-}: BLWorkflowProps) {
+export default function BillOfLadingWorkflow({ shipmentId }: BLWorkflowProps) {
   const { data: session } = useSession();
   const [blData, setBlData] = useState<BLWorkflowData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -155,12 +157,15 @@ export default function BillOfLadingWorkflow({
           Bill of Lading Workflow
         </h2>
         <p className="text-gray-600">
-          Review and approve your Bill of Lading documents
+          Review and approve your Bill of Lading documents for shipment from{" "}
+          {blData.origin} to {blData.destination}
         </p>
       </div>
 
       {/* BL Actions */}
-      {["draft_bl", "final_bl"].includes(blData.status) && (
+      {["draft_bl_uploaded", "final_bl_uploaded"].includes(
+        blData.shipmentStatus
+      ) && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <h3 className="text-lg font-medium text-gray-900 mb-3">
             Bill of Lading Actions
@@ -182,22 +187,23 @@ export default function BillOfLadingWorkflow({
                 View Final BL
               </button>
             )}
-            {blData.status === "draft_bl" && blData.hasDraftBL && (
-              <>
-                <button
-                  onClick={handleApproveBL}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  Approve BL
-                </button>
-                <button
-                  onClick={() => setShowAmendmentModal(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-                >
-                  Request Amendment
-                </button>
-              </>
-            )}
+            {blData.shipmentStatus === "draft_bl_uploaded" &&
+              blData.hasDraftBL && (
+                <>
+                  <button
+                    onClick={handleApproveBL}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    Approve BL
+                  </button>
+                  <button
+                    onClick={() => setShowAmendmentModal(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                  >
+                    Request Amendment
+                  </button>
+                </>
+              )}
           </div>
         </div>
       )}
@@ -207,7 +213,7 @@ export default function BillOfLadingWorkflow({
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
 
         {blTimelineSteps.map((step, index) => {
-          const status = getStepStatus(step.key, blData.status);
+          const status = getStepStatus(step.key, blData.shipmentStatus);
           const isCompleted = status === "completed";
           const isCurrent = status === "current";
 
@@ -272,6 +278,24 @@ export default function BillOfLadingWorkflow({
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
+            <span className="text-gray-500">Origin:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {blData.origin}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-500">Destination:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {blData.destination}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-500">Mode:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {blData.mode}
+            </span>
+          </div>
+          <div>
             <span className="text-gray-500">Commodity:</span>
             <span className="ml-2 font-medium text-gray-900">
               {blData.commodity}
@@ -281,6 +305,12 @@ export default function BillOfLadingWorkflow({
             <span className="text-gray-500">Container Type:</span>
             <span className="ml-2 font-medium text-gray-900">
               {blData.containerType}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-500">Shipment Status:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {blData.shipmentStatus}
             </span>
           </div>
         </div>

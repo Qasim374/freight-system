@@ -29,19 +29,32 @@ export default function ShipmentNavigation({
 
         if (response.ok) {
           const data = await response.json();
-          const status = data.shipment.status;
+          const shipmentStatus = data.shipment.shipmentStatus;
+          const trackingStatus = data.shipment.trackingStatus;
 
           // Immediate redirect based on status
-          if (["draft_bl", "final_bl", "booking"].includes(status)) {
+          if (
+            ["draft_bl_uploaded", "final_bl_uploaded"].includes(shipmentStatus)
+          ) {
             router.push(`/client/shipments/${shipmentId}/bl-workflow`);
           } else if (
-            ["loading", "sailed", "delivered", "in_transit"].includes(status)
+            ["loading", "sailed", "delivered", "in_transit"].includes(
+              trackingStatus
+            )
           ) {
             router.push(`/client/shipments/${shipmentId}/tracking`);
+          } else {
+            // Default to tracking page for other statuses
+            router.push(`/client/shipments/${shipmentId}/tracking`);
           }
+        } else {
+          // If API fails, redirect to tracking page as fallback
+          router.push(`/client/shipments/${shipmentId}/tracking`);
         }
       } catch (error) {
         console.error("Failed to fetch shipment data:", error);
+        // Fallback redirect
+        router.push(`/client/shipments/${shipmentId}/tracking`);
       }
     };
 
@@ -54,6 +67,7 @@ export default function ShipmentNavigation({
   return (
     <div className="flex justify-center items-center py-8">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+      <p className="ml-3 text-gray-600">Loading shipment details...</p>
     </div>
   );
 }

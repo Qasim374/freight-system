@@ -5,13 +5,14 @@ import BillOfLadingWorkflow from "@/components/client/BillOfLadingWorkflow";
 import Link from "next/link";
 
 interface BLWorkflowPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function BLWorkflowPage({ params }: BLWorkflowPageProps) {
   const session = await getServerSession(authOptions);
+  const { id } = await params;
 
   if (!session || !isClientRole(session.user.role)) {
     return <div>Unauthorized</div>;
@@ -27,12 +28,12 @@ export default async function BLWorkflowPage({ params }: BLWorkflowPageProps) {
                 Bill of Lading Workflow
               </h1>
               <p className="text-gray-600 mt-1">
-                Shipment #{params.id.substring(0, 8)}
+                Shipment #{id}
               </p>
             </div>
             {/* <div className="flex space-x-3">
               <Link
-                href={`/client/shipments/${params.id}`}
+                href={`/client/shipments/${id}`}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <svg
@@ -51,7 +52,7 @@ export default async function BLWorkflowPage({ params }: BLWorkflowPageProps) {
                 Back to Shipment
               </Link>
               <Link
-                href={`/client/shipments/${params.id}/tracking`}
+                href={`/client/shipments/${id}/tracking`}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 View Tracking
@@ -73,7 +74,7 @@ export default async function BLWorkflowPage({ params }: BLWorkflowPageProps) {
           </div>
         </div>
 
-        <BillOfLadingWorkflow shipmentId={params.id} />
+        <BillOfLadingWorkflow shipmentId={id} />
       </div>
     </div>
   );

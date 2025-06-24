@@ -1,109 +1,115 @@
 import {
   mysqlTable,
-  varchar,
   int,
-  timestamp,
-  decimal,
+  varchar,
   text,
-  json,
   boolean,
+  decimal,
   mysqlEnum,
+  timestamp,
+  date,
 } from "drizzle-orm/mysql-core";
 
+// USERS
 export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  email: varchar("email", { length: 255 }).unique().notNull(),
-  password: varchar("password", { length: 255 }).notNull(),
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 255 }),
+  email: varchar("email", { length: 255 }).unique(),
+  password: varchar("password", { length: 255 }),
+  role: varchar("role", { length: 50 }),
   company: varchar("company", { length: 255 }),
-  role: mysqlEnum("role", [
-    "client_admin",
-    "bl_manager",
-    "pricing_reviewer",
-    "accounts",
-    "vendor_admin",
-    "pricing_agent",
-    "bl_manager_vendor",
-    "accounts_vendor",
-    "system_admin",
-    "vendor_manager",
-    "quote_control",
-    "amendment_reviewer",
-    "finance_admin",
-    "analytics_officer",
-  ]).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const shipments = mysqlTable("shipments", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  clientId: int("client_id").notNull(),
-  vendorId: int("vendor_id"),
-  status: mysqlEnum("status", [
-    "quote_requested",
-    "quote_received",
-    "quote_confirmed",
-    "booking",
-    "booked",
-    "draft_bl",
-    "final_bl",
-    "in_transit",
-    "loading",
-    "sailed",
-    "delivered",
-  ]).default("quote_requested"),
+// QUOTES
+export const quotes = mysqlTable("quotes", {
+  id: int("id").primaryKey().autoincrement(),
+  clientId: int("client_id"),
+  mode: mysqlEnum("mode", ["Ex-Works", "FOB"]),
   containerType: mysqlEnum("container_type", ["20ft", "40ft", "40HC"]),
+  numContainers: int("num_containers"),
   commodity: varchar("commodity", { length: 255 }),
-  numberOfContainers: int("number_of_containers"),
   weightPerContainer: decimal("weight_per_container", {
     precision: 10,
     scale: 2,
   }),
-  preferredShipmentDate: timestamp("preferred_shipment_date"),
+  shipmentDate: date("shipment_date"),
   collectionAddress: text("collection_address"),
-  // Tracking fields
-  carrierReference: varchar("carrier_reference", { length: 255 }),
-  eta: timestamp("eta"),
-  sailingDate: timestamp("sailing_date"),
-  loadingDate: timestamp("loading_date"),
-  deliveredDate: timestamp("delivered_date"),
-  // Quote workflow fields
-  quoteRequestedAt: timestamp("quote_requested_at").defaultNow(),
-  quoteDeadline: timestamp("quote_deadline"),
-  winningQuoteId: int("winning_quote_id"),
+  status: mysqlEnum("status", [
+    "awaiting_bids",
+    "bids_received",
+    "client_review",
+    "booked",
+  ]).default("awaiting_bids"),
   finalPrice: decimal("final_price", { precision: 10, scale: 2 }),
-  // BL workflow fields
-  hasDraftBL: boolean("has_draft_bl").default(false),
-  hasFinalBL: boolean("has_final_bl").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const quotes = mysqlTable("quotes", {
-  id: int("id").autoincrement().primaryKey(),
-  shipmentId: varchar("shipment_id", { length: 36 }).notNull(),
-  vendorId: int("vendor_id").notNull(),
-  cost: decimal("cost", { precision: 10, scale: 2 }).notNull(),
-  sailingDate: timestamp("sailing_date").notNull(),
-  carrierName: varchar("carrier_name", { length: 255 }).notNull(),
-  submittedAt: timestamp("submitted_at").defaultNow(),
-  isWinner: boolean("is_winner").default(false),
+// QUOTE BIDS
+export const quoteBids = mysqlTable("quote_bids", {
+  id: int("id").primaryKey().autoincrement(),
+  quoteId: int("quote_id"),
+  vendorId: int("vendor_id"),
+  costUsd: decimal("cost_usd", { precision: 10, scale: 2 }),
+  sailingDate: date("sailing_date"),
+  carrierName: varchar("carrier_name", { length: 255 }),
+  status: mysqlEnum("status", ["submitted", "selected", "rejected"]).default(
+    "submitted"
+  ),
+  markupApplied: boolean("markup_applied").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
+// SHIPMENTS
+export const shipments = mysqlTable("shipments", {
+  id: int("id").primaryKey().autoincrement(),
+  quoteId: int("quote_id"),
+  clientId: int("client_id"),
+  vendorId: int("vendor_id"),
+  shipmentStatus: mysqlEnum("shipment_status", [
+    "booked",
+    "draft_bl_uploaded",
+    "final_bl_uploaded",
+    "in_transit",
+  ]).default("booked"),
+  trackingStatus: mysqlEnum("tracking_status", [
+    "quote_confirmed",
+    "booking",
+    "loading",
+    "sailed",
+    "delivered",
+  ]).default("quote_confirmed"),
+  carrierReference: varchar("carrier_reference", { length: 255 }),
+  eta: date("eta"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// BILLS OF LADING
 export const billsOfLading = mysqlTable("bills_of_lading", {
-  id: int("id").autoincrement().primaryKey(),
-  shipmentId: varchar("shipment_id", { length: 36 }).notNull(),
-  version: mysqlEnum("version", ["draft", "final"]).notNull(),
-  fileUrl: varchar("file_url", { length: 512 }).notNull(),
-  uploadedBy: int("uploaded_by").notNull(),
-  approved: boolean("approved").default(false),
-  uploadedAt: timestamp("uploaded_at").defaultNow(),
+  id: int("id").primaryKey().autoincrement(),
+  shipmentId: int("shipment_id"),
+  vendorId: int("vendor_id"),
+  draftBl: varchar("draft_bl", { length: 255 }),
+  finalBl: varchar("final_bl", { length: 255 }),
+  blStatus: mysqlEnum("bl_status", [
+    "draft_uploaded",
+    "awaiting_client_approval",
+    "amendment_requested",
+    "final_uploaded",
+    "final_approved",
+  ]).default("draft_uploaded"),
+  approvedByClient: boolean("approved_by_client").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
+// AMENDMENTS
 export const amendments = mysqlTable("amendments", {
-  id: int("id").autoincrement().primaryKey(),
-  shipmentId: varchar("shipment_id", { length: 36 }).notNull(),
-  reason: text("reason").notNull(),
-  extraCost: decimal("extra_cost", { precision: 10, scale: 2 }).default("0.00"),
-  delayDays: int("delay_days").default(0),
+  id: int("id").primaryKey().autoincrement(),
+  blId: int("bl_id"),
+  initiatedBy: mysqlEnum("initiated_by", ["client", "admin", "vendor"]),
+  reason: text("reason"),
+  fileUpload: varchar("file_upload", { length: 255 }),
+  extraCost: decimal("extra_cost", { precision: 10, scale: 2 }),
+  delayDays: int("delay_days"),
   status: mysqlEnum("status", [
     "requested",
     "vendor_replied",
@@ -112,28 +118,28 @@ export const amendments = mysqlTable("amendments", {
     "accepted",
     "rejected",
   ]).default("requested"),
+  approvedBy: varchar("approved_by", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// INVOICES
 export const invoices = mysqlTable("invoices", {
-  id: int("id").autoincrement().primaryKey(),
-  shipmentId: varchar("shipment_id", { length: 36 }).notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  type: mysqlEnum("type", ["client", "vendor"]).notNull(),
-  status: mysqlEnum("status", [
-    "paid",
-    "unpaid",
-    "awaiting_verification",
-  ]).default("unpaid"),
-  dueDate: timestamp("due_date"),
+  id: int("id").primaryKey().autoincrement(),
+  shipmentId: int("shipment_id"),
+  userId: int("user_id"),
+  amount: decimal("amount", { precision: 10, scale: 2 }),
+  status: mysqlEnum("status", ["paid", "unpaid", "awaiting_verification"]),
+  paymentMethod: varchar("payment_method", { length: 50 }),
+  proofUploaded: varchar("proof_uploaded", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const auditLogs = mysqlTable("audit_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  shipmentId: varchar("shipment_id", { length: 36 }).notNull(),
-  actorId: int("actor_id").notNull(),
-  action: varchar("action", { length: 255 }).notNull(),
-  details: json("details"),
+// SHIPMENT LOGS
+export const shipmentLogs = mysqlTable("shipment_logs", {
+  id: int("id").primaryKey().autoincrement(),
+  shipmentId: int("shipment_id"),
+  actor: varchar("actor", { length: 255 }),
+  action: varchar("action", { length: 255 }),
   timestamp: timestamp("timestamp").defaultNow(),
+  details: text("details"),
 });

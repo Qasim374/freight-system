@@ -6,10 +6,11 @@ import AmendmentResponseModal from "./AmendmentResponseModal";
 
 interface AmendmentNotification {
   id: number;
-  shipmentId: string;
+  blId: number;
+  shipmentId: number;
   reason: string;
-  extraCost: number;
-  delayDays: number;
+  extraCost: string | null;
+  delayDays: number | null;
   status: string;
   createdAt: string;
 }
@@ -44,10 +45,9 @@ export default function AmendmentNotifications() {
       if (response.ok) {
         const data = await response.json();
 
-        // Only show amendments that are in "client_review" status
+        // Only show amendments that are in "requested" status (awaiting client response)
         const clientReviewAmendments = (data.amendments || []).filter(
-          (amendment: AmendmentNotification) =>
-            amendment.status === "client_review"
+          (amendment: AmendmentNotification) => amendment.status === "requested"
         );
 
         setPendingAmendments(clientReviewAmendments);
@@ -157,15 +157,20 @@ export default function AmendmentNotifications() {
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="text-sm font-medium text-gray-900">
-                      Shipment #{amendment.shipmentId.substring(0, 8)}
+                      Shipment #{amendment.shipmentId}
                     </div>
                     <div className="text-sm text-gray-600 mt-1">
                       {amendment.reason.substring(0, 100)}
                       {amendment.reason.length > 100 && "..."}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      Extra Cost: ${amendment.extraCost.toFixed(2)} • Delay:{" "}
-                      {amendment.delayDays} days
+                      {amendment.extraCost &&
+                        `Extra Cost: $${parseFloat(amendment.extraCost).toFixed(
+                          2
+                        )}`}
+                      {amendment.extraCost && amendment.delayDays && " • "}
+                      {amendment.delayDays &&
+                        `Delay: ${amendment.delayDays} days`}
                     </div>
                   </div>
                   <button

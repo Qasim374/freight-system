@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { shipments, quotes } from "@/lib/schema";
+import { quotes, quoteBids } from "@/lib/schema";
 import { isClientRole } from "@/lib/auth-utils";
-import { v4 as uuidv4 } from "uuid";
 
 // GET - List client's quote requests
 export async function GET(request: Request) {
@@ -17,37 +16,39 @@ export async function GET(request: Request) {
   try {
     const clientQuotes = await db
       .select({
-        id: shipments.id,
-        status: shipments.status,
-        containerType: shipments.containerType,
-        commodity: shipments.commodity,
-        numberOfContainers: shipments.numberOfContainers,
-        preferredShipmentDate: shipments.preferredShipmentDate,
-        createdAt: shipments.createdAt,
-        quoteDeadline: shipments.quoteDeadline,
-        quoteRequestedAt: shipments.quoteRequestedAt,
+        id: quotes.id,
+        status: quotes.status,
+        containerType: quotes.containerType,
+        commodity: quotes.commodity,
+        numContainers: quotes.numContainers,
+        shipmentDate: quotes.shipmentDate,
+        createdAt: quotes.createdAt,
+        finalPrice: quotes.finalPrice,
+        mode: quotes.mode,
+        weightPerContainer: quotes.weightPerContainer,
+        collectionAddress: quotes.collectionAddress,
       })
-      .from(shipments)
-      .where(eq(shipments.clientId, parseInt(userId)))
-      .orderBy(desc(shipments.createdAt));
+      .from(quotes)
+      .where(eq(quotes.clientId, parseInt(userId)))
+      .orderBy(desc(quotes.createdAt));
 
-    // Get quote counts for each shipment
-    const quotesWithCounts = await Promise.all(
-      clientQuotes.map(async (shipment) => {
-        const quoteCount = await db
-          .select({ count: quotes.id })
-          .from(quotes)
-          .where(eq(quotes.shipmentId, shipment.id));
+    // Get bid counts for each quote
+    const quotesWithBidCounts = await Promise.all(
+      clientQuotes.map(async (quote) => {
+        const [bidCount] = await db
+          .select({ count: count() })
+          .from(quoteBids)
+          .where(eq(quoteBids.quoteId, quote.id));
 
         return {
-          ...shipment,
-          quotes: quoteCount,
+          ...quote,
+          bidCount: bidCount.count,
         };
       })
     );
 
     return NextResponse.json({
-      quotes: quotesWithCounts,
+      quotes: quotesWithBidCounts,
     });
   } catch (error) {
     console.error("Client quotes API error:", error);
@@ -72,10 +73,10 @@ export async function POST(request: Request) {
     const {
       mode,
       containerType,
-      numberOfContainers,
+      numContainers,
       commodity,
       weightPerContainer,
-      preferredShipmentDate,
+      shipmentDate,
       collectionAddress,
     } = body;
 
@@ -83,9 +84,9 @@ export async function POST(request: Request) {
     if (
       !mode ||
       !containerType ||
-      !numberOfContainers ||
+      !numContainers ||
       !commodity ||
-      !preferredShipmentDate
+      !shipmentDate
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -93,34 +94,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate shipment ID
-    const shipmentId = uuidv4();
-
-    // Calculate 48-hour deadline
-    const quoteDeadline = new Date();
-    quoteDeadline.setHours(quoteDeadline.getHours() + 48);
-
-    // Create shipment
-    await db.insert(shipments).values({
-      id: shipmentId,
+    // Create quote request
+    const [newQuote] = await db.insert(quotes).values({
       clientId: parseInt(userId),
-      status: "quote_requested",
+      mode,
       containerType,
+      numContainers,
       commodity,
-      weightPerContainer,
-      preferredShipmentDate: new Date(preferredShipmentDate),
+      weightPerContainer: weightPerContainer
+        ? parseFloat(weightPerContainer)
+        : null,
+      shipmentDate: new Date(shipmentDate),
       collectionAddress: mode === "Ex-Works" ? collectionAddress : null,
-      quoteRequestedAt: new Date(),
-      quoteDeadline,
+      status: "awaiting_bids",
     });
 
     // TODO: Route request to assigned vendors (this would be implemented in a separate service)
-    console.log(`Quote request ${shipmentId} created. Routing to vendors...`);
+    console.log(
+      `Quote request ${newQuote.insertId} created. Routing to vendors...`
+    );
 
     return NextResponse.json({
-      id: shipmentId,
+      id: newQuote.insertId,
       message: "Quote request created successfully. Vendors will be notified.",
-      deadline: quoteDeadline,
     });
   } catch (error) {
     console.error("Create quote API error:", error);

@@ -6,22 +6,29 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface Quote {
-  id: string;
+  id: number;
   status: string;
   containerType: string;
   commodity: string;
-  numberOfContainers: number;
-  preferredShipmentDate: string;
+  numContainers: number;
+  shipmentDate: string;
   createdAt: string;
-  quoteDeadline?: string;
-  quoteRequestedAt?: string;
-  quotes?: Array<{
-    id: number;
-    cost: number;
-    carrierName: string;
-    sailingDate: string;
-    isWinner: boolean;
-  }>;
+  finalPrice: string | null;
+  mode: string;
+  weightPerContainer: string | null;
+  collectionAddress: string | null;
+  bidCount: number;
+}
+
+interface QuoteBid {
+  id: number;
+  vendorId: number;
+  costUsd: string;
+  sailingDate: string;
+  carrierName: string;
+  status: string;
+  markupApplied: boolean;
+  createdAt: string;
 }
 
 export default function QuoteDetailsPage() {
@@ -29,31 +36,27 @@ export default function QuoteDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [bids, setBids] = useState<QuoteBid[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchQuoteDetails = async () => {
       try {
-        const response = await fetch(`/api/client/quotes`, {
+        // Fetch quote details
+        const quoteResponse = await fetch(`/api/client/quotes/${params.id}`, {
           headers: {
             "x-user-id": session?.user?.id || "",
             "x-user-role": session?.user?.role || "",
           },
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          const foundQuote = data.quotes?.find(
-            (q: Quote) => q.id === params.id
-          );
-          if (foundQuote) {
-            setQuote(foundQuote);
-          } else {
-            setError("Quote not found");
-          }
+        if (quoteResponse.ok) {
+          const quoteData = await quoteResponse.json();
+          setQuote(quoteData.quote);
+          setBids(quoteData.bids || []);
         } else {
-          setError("Failed to load quote details");
+          setError("Quote not found");
         }
       } catch {
         setError("An error occurred while loading quote details");
@@ -69,18 +72,31 @@ export default function QuoteDetailsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "quote_requested":
+      case "awaiting_bids":
         return "bg-yellow-100 text-yellow-800";
-      case "quote_received":
-        return "bg-gray-100 text-gray-800";
+      case "bids_received":
+        return "bg-blue-100 text-blue-800";
+      case "client_review":
+        return "bg-purple-100 text-purple-800";
       case "booked":
         return "bg-green-100 text-green-800";
-      case "in_transit":
-        return "bg-purple-100 text-purple-800";
-      case "delivered":
-        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "awaiting_bids":
+        return "AWAITING BIDS";
+      case "bids_received":
+        return "BIDS RECEIVED";
+      case "client_review":
+        return "UNDER REVIEW";
+      case "booked":
+        return "BOOKED";
+      default:
+        return status.replace("_", " ").toUpperCase();
     }
   };
 
@@ -88,11 +104,11 @@ export default function QuoteDetailsPage() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: string) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-    }).format(amount);
+    }).format(parseFloat(amount));
   };
 
   if (loading) {
@@ -135,7 +151,7 @@ export default function QuoteDetailsPage() {
                 ← Back to Quotes
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">
-                Quote Request #{quote.id.substring(0, 8)}
+                Quote Request #{quote.id}
               </h1>
               <p className="text-gray-600 mt-1">
                 View details and vendor responses for this quote request
@@ -146,7 +162,7 @@ export default function QuoteDetailsPage() {
                 quote.status
               )}`}
             >
-              {quote.status.replace("_", " ").toUpperCase()}
+              {getStatusLabel(quote.status)}
             </span>
           </div>
         </div>
@@ -180,16 +196,20 @@ export default function QuoteDetailsPage() {
                     Number of Containers
                   </dt>
                   <dd className="text-sm text-gray-900 mt-1">
-                    {quote.numberOfContainers}
+                    {quote.numContainers}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-500">
-                    Preferred Shipment Date
+                    Shipment Date
                   </dt>
                   <dd className="text-sm text-gray-900 mt-1">
-                    {formatDate(quote.preferredShipmentDate)}
+                    {formatDate(quote.shipmentDate)}
                   </dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Mode</dt>
+                  <dd className="text-sm text-gray-900 mt-1">{quote.mode}</dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-500">Created</dt>
@@ -197,53 +217,81 @@ export default function QuoteDetailsPage() {
                     {formatDate(quote.createdAt)}
                   </dd>
                 </div>
-                {quote.quoteDeadline && (
+                {quote.weightPerContainer && (
                   <div>
                     <dt className="text-sm font-medium text-gray-500">
-                      Quote Deadline
+                      Weight per Container
                     </dt>
                     <dd className="text-sm text-gray-900 mt-1">
-                      {formatDate(quote.quoteDeadline)}
+                      {parseFloat(quote.weightPerContainer).toFixed(2)} tons
+                    </dd>
+                  </div>
+                )}
+                {quote.finalPrice && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">
+                      Final Price
+                    </dt>
+                    <dd className="text-sm text-gray-900 mt-1 font-semibold">
+                      {formatCurrency(quote.finalPrice)}
                     </dd>
                   </div>
                 )}
               </div>
+
+              {quote.collectionAddress && (
+                <div className="mt-4">
+                  <dt className="text-sm font-medium text-gray-500">
+                    Collection Address
+                  </dt>
+                  <dd className="text-sm text-gray-900 mt-1">
+                    {quote.collectionAddress}
+                  </dd>
+                </div>
+              )}
             </div>
 
-            {/* Vendor Quotes */}
+            {/* Vendor Bids */}
             <div className="bg-white shadow rounded-lg p-6 mt-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">
-                Vendor Responses ({quote.quotes?.length || 0})
+                Vendor Bids ({bids.length})
               </h2>
-              {quote.quotes && quote.quotes.length > 0 ? (
+              {bids.length > 0 ? (
                 <div className="space-y-4">
-                  {quote.quotes.map((vendorQuote) => (
+                  {bids.map((bid) => (
                     <div
-                      key={vendorQuote.id}
-                      className={`border rounded-lg p-4 ${
-                        vendorQuote.isWinner
-                          ? "border-green-200 bg-green-50"
-                          : "border-gray-200"
-                      }`}
+                      key={bid.id}
+                      className="border rounded-lg p-4 bg-gray-50"
                     >
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-medium text-gray-900">
-                            {vendorQuote.carrierName}
-                            {vendorQuote.isWinner && (
-                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Winner
-                              </span>
-                            )}
+                            {bid.carrierName}
                           </h3>
-                          <p className="text-sm text-gray-500">
-                            Sailing Date: {formatDate(vendorQuote.sailingDate)}
+                          <p className="text-sm text-gray-600">
+                            Sailing Date: {formatDate(bid.sailingDate)}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Cost: {formatCurrency(bid.costUsd)}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-lg font-bold text-gray-900">
-                            {formatCurrency(vendorQuote.cost)}
-                          </p>
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              bid.status === "selected"
+                                ? "bg-green-100 text-green-800"
+                                : bid.status === "rejected"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {bid.status.toUpperCase()}
+                          </span>
+                          {bid.markupApplied && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Markup Applied
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -251,7 +299,7 @@ export default function QuoteDetailsPage() {
                 </div>
               ) : (
                 <p className="text-gray-500 text-center py-4">
-                  No vendor responses yet. Check back later for quotes.
+                  No bids received yet
                 </p>
               )}
             </div>
@@ -264,38 +312,25 @@ export default function QuoteDetailsPage() {
                 Actions
               </h2>
               <div className="space-y-3">
-                {quote.status === "quote_requested" && (
-                  <button
-                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700"
-                    disabled
-                  >
-                    Waiting for Quotes
+                {quote.status === "bids_received" && (
+                  <button className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                    Review Bids
                   </button>
-                )}
-                {quote.status === "quote_confirmed" && (
-                  <Link
-                    href={`/client/quotes/${quote.id}/result`}
-                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                  >
-                    View Quote Result
-                  </Link>
-                )}
-                {quote.status === "quote_received" && (
-                  <Link
-                    href={`/client/quotes/${quote.id}/book`}
-                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                  >
-                    Book Shipment
-                  </Link>
                 )}
                 {quote.status === "booked" && (
                   <Link
                     href={`/client/shipments/${quote.id}`}
-                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-center block"
                   >
-                    Track Shipment
+                    View Shipment
                   </Link>
                 )}
+                <Link
+                  href="/client/quotes"
+                  className="w-full bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-center block"
+                >
+                  Back to Quotes
+                </Link>
               </div>
             </div>
           </div>

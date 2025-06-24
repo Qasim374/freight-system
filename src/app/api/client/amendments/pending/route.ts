@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { amendments, shipments } from "@/lib/schema";
+import { amendments, billsOfLading, shipments } from "@/lib/schema";
 import { isClientRole } from "@/lib/auth-utils";
 
 // GET - Get pending amendments for client response
@@ -14,11 +14,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Get amendments that are in client_review status for this client's shipments
+    // Get amendments that are in requested status for this client's shipments
     const pendingAmendments = await db
       .select({
         id: amendments.id,
-        shipmentId: amendments.shipmentId,
+        blId: amendments.blId,
+        shipmentId: shipments.id,
         reason: amendments.reason,
         extraCost: amendments.extraCost,
         delayDays: amendments.delayDays,
@@ -26,15 +27,15 @@ export async function GET(request: Request) {
         createdAt: amendments.createdAt,
       })
       .from(amendments)
-      .innerJoin(shipments, eq(amendments.shipmentId, shipments.id))
-      .where(eq(amendments.status, "client_review"))
+      .innerJoin(billsOfLading, eq(amendments.blId, billsOfLading.id))
+      .innerJoin(shipments, eq(billsOfLading.shipmentId, shipments.id))
+      .where(eq(amendments.status, "requested"))
       .where(eq(shipments.clientId, parseInt(userId)))
       .orderBy(amendments.createdAt);
 
     return NextResponse.json({
       amendments: pendingAmendments.map((amendment) => ({
         ...amendment,
-        extraCost: Number(amendment.extraCost),
         createdAt: amendment.createdAt.toISOString(),
       })),
     });

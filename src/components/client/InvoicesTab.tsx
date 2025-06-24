@@ -166,8 +166,8 @@ export default function InvoicesTab() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     #{invoice.id}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    #{invoice.shipmentId.substring(0, 8)}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    #{invoice.shipmentId}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatPrice(invoice.amount)}

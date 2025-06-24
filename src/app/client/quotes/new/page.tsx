@@ -7,10 +7,10 @@ import { useSession } from "next-auth/react";
 interface QuoteFormData {
   mode: string;
   containerType: string;
-  numberOfContainers: number;
+  numContainers: number;
   commodity: string;
   weightPerContainer: number;
-  preferredShipmentDate: string;
+  shipmentDate: string;
   collectionAddress: string;
 }
 
@@ -22,10 +22,10 @@ export default function NewQuotePage() {
   const [formData, setFormData] = useState<QuoteFormData>({
     mode: "FOB",
     containerType: "40ft",
-    numberOfContainers: 1,
+    numContainers: 1,
     commodity: "",
     weightPerContainer: 0,
-    preferredShipmentDate: "",
+    shipmentDate: "",
     collectionAddress: "",
   });
 
@@ -38,7 +38,7 @@ export default function NewQuotePage() {
     setFormData((prev) => ({
       ...prev,
       [name]:
-        name === "numberOfContainers" || name === "weightPerContainer"
+        name === "numContainers" || name === "weightPerContainer"
           ? parseFloat(value) || 0
           : value,
     }));
@@ -49,17 +49,16 @@ export default function NewQuotePage() {
 
     if (!formData.mode) errors.push("Shipping mode is required");
     if (!formData.containerType) errors.push("Container type is required");
-    if (formData.numberOfContainers < 1)
+    if (formData.numContainers < 1)
       errors.push("At least 1 container is required");
     if (!formData.commodity) errors.push("Commodity is required");
     if (formData.weightPerContainer < 0.1)
       errors.push("Weight must be at least 0.1 tons");
-    if (!formData.preferredShipmentDate)
-      errors.push("Preferred shipment date is required");
+    if (!formData.shipmentDate) errors.push("Shipment date is required");
 
-    const selectedDate = new Date(formData.preferredShipmentDate);
+    const selectedDate = new Date(formData.shipmentDate);
     if (selectedDate <= new Date()) {
-      errors.push("Preferred shipment date must be in the future");
+      errors.push("Shipment date must be in the future");
     }
 
     if (formData.mode === "Ex-Works" && !formData.collectionAddress) {
@@ -196,38 +195,19 @@ export default function NewQuotePage() {
 
               <div>
                 <label
-                  htmlFor="numberOfContainers"
+                  htmlFor="numContainers"
                   className="block text-sm font-medium text-gray-700"
                 >
                   Number of Containers
                 </label>
                 <input
                   type="number"
-                  id="numberOfContainers"
-                  name="numberOfContainers"
-                  value={formData.numberOfContainers}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm text-black bg-white"
+                  id="numContainers"
+                  name="numContainers"
                   min="1"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="weightPerContainer"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Weight per Container (tons)
-                </label>
-                <input
-                  type="number"
-                  id="weightPerContainer"
-                  name="weightPerContainer"
-                  value={formData.weightPerContainer}
+                  value={formData.numContainers}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm text-black bg-white"
-                  step="0.1"
-                  min="0.1"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
                 />
               </div>
 
@@ -244,89 +224,82 @@ export default function NewQuotePage() {
                   name="commodity"
                   value={formData.commodity}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm text-black bg-white"
                   placeholder="e.g., Electronics, Textiles, Machinery"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
                 />
               </div>
 
               <div>
                 <label
-                  htmlFor="preferredShipmentDate"
+                  htmlFor="weightPerContainer"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Preferred Shipment Date
+                  Weight per Container (tons)
                 </label>
                 <input
-                  type="date"
-                  id="preferredShipmentDate"
-                  name="preferredShipmentDate"
-                  value={formData.preferredShipmentDate}
+                  type="number"
+                  id="weightPerContainer"
+                  name="weightPerContainer"
+                  step="0.1"
+                  min="0.1"
+                  value={formData.weightPerContainer}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm text-black bg-white"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
                 />
               </div>
 
-              {formData.mode === "Ex-Works" && (
-                <div className="sm:col-span-2">
-                  <label
-                    htmlFor="collectionAddress"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Collection Address
-                  </label>
-                  <textarea
-                    id="collectionAddress"
-                    name="collectionAddress"
-                    value={formData.collectionAddress}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm text-black bg-white"
-                    placeholder="Full address for collection"
-                  />
-                </div>
-              )}
+              <div>
+                <label
+                  htmlFor="shipmentDate"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Shipment Date
+                </label>
+                <input
+                  type="date"
+                  id="shipmentDate"
+                  name="shipmentDate"
+                  value={formData.shipmentDate}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                />
+              </div>
             </div>
 
-            <div className="flex justify-end pt-6">
+            {formData.mode === "Ex-Works" && (
+              <div>
+                <label
+                  htmlFor="collectionAddress"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Collection Address
+                </label>
+                <textarea
+                  id="collectionAddress"
+                  name="collectionAddress"
+                  rows={3}
+                  value={formData.collectionAddress}
+                  onChange={handleInputChange}
+                  placeholder="Enter the collection address for Ex-Works shipping"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3">
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? (
-                  <>
-                    <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Submitting...
-                  </>
-                ) : (
-                  "Request Quote"
-                )}
+                {isSubmitting ? "Creating..." : "Create Quote Request"}
               </button>
             </div>
           </form>

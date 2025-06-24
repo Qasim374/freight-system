@@ -1,67 +1,73 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { shipments, quotes } from "@/lib/schema";
+import { quotes, quoteBids } from "@/lib/schema";
 import { isClientRole } from "@/lib/auth-utils";
 
-// GET - Get specific quote request by ID
+// GET - Get individual quote details with bids
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const userId = request.headers.get("x-user-id");
   const userRole = request.headers.get("x-user-role");
+  const { id } = await params;
 
   if (!userId || !userRole || !isClientRole(userRole)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    // Get the specific shipment/quote request
-    const shipment = await db
+    // Get quote details
+    const quote = await db
       .select({
-        id: shipments.id,
-        status: shipments.status,
-        containerType: shipments.containerType,
-        commodity: shipments.commodity,
-        numberOfContainers: shipments.numberOfContainers,
-        preferredShipmentDate: shipments.preferredShipmentDate,
-        createdAt: shipments.createdAt,
-        quoteDeadline: shipments.quoteDeadline,
-        quoteRequestedAt: shipments.quoteRequestedAt,
+        id: quotes.id,
+        status: quotes.status,
+        containerType: quotes.containerType,
+        commodity: quotes.commodity,
+        numContainers: quotes.numContainers,
+        shipmentDate: quotes.shipmentDate,
+        createdAt: quotes.createdAt,
+        finalPrice: quotes.finalPrice,
+        mode: quotes.mode,
+        weightPerContainer: quotes.weightPerContainer,
+        collectionAddress: quotes.collectionAddress,
       })
-      .from(shipments)
-      .where(eq(shipments.id, params.id))
-      .where(eq(shipments.clientId, parseInt(userId)))
-      .limit(1);
+      .from(quotes)
+      .where(eq(quotes.id, parseInt(id)))
+      .where(eq(quotes.clientId, parseInt(userId)));
 
-    if (shipment.length === 0) {
+    if (!quote || quote.length === 0) {
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });
     }
 
-    // Get vendor quotes for this shipment
-    const vendorQuotes = await db
+    // Get bids for this quote
+    const bids = await db
       .select({
-        id: quotes.id,
-        cost: quotes.cost,
-        carrierName: quotes.carrierName,
-        sailingDate: quotes.sailingDate,
-        isWinner: quotes.isWinner,
+        id: quoteBids.id,
+        vendorId: quoteBids.vendorId,
+        costUsd: quoteBids.costUsd,
+        sailingDate: quoteBids.sailingDate,
+        carrierName: quoteBids.carrierName,
+        status: quoteBids.status,
+        markupApplied: quoteBids.markupApplied,
+        createdAt: quoteBids.createdAt,
       })
-      .from(quotes)
-      .where(eq(quotes.shipmentId, params.id));
+      .from(quoteBids)
+      .where(eq(quoteBids.quoteId, parseInt(id)));
 
-    const quoteData = {
-      ...shipment[0],
-      quotes: vendorQuotes,
-    };
-
-    return NextResponse.json(quoteData);
+    return NextResponse.json({
+      quote: quote[0],
+      bids: bids.map((bid) => ({
+        ...bid,
+        createdAt: bid.createdAt.toISOString(),
+      })),
+    });
   } catch (error) {
-    console.error("Get quote by ID API error:", error);
+    console.error("Quote details API error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     );
   }
-} 
+}

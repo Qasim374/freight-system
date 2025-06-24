@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 
 interface ShipmentTrackingData {
-  id: string;
-  status: string;
+  id: number;
+  trackingStatus: string;
+  shipmentStatus: string;
   carrierReference?: string;
   eta?: string;
   sailingDate?: string;
@@ -14,6 +15,9 @@ interface ShipmentTrackingData {
   commodity: string;
   containerType: string;
   finalPrice?: number;
+  origin: string;
+  destination: string;
+  mode: string;
 }
 
 interface ShipmentTrackingProps {
@@ -142,7 +146,8 @@ export default function ShipmentTracking({
           Shipment Tracking
         </h2>
         <p className="text-gray-600">
-          Track your shipment&apos;s journey from origin to destination
+          Track your shipment&apos;s journey from {trackingData.origin} to{" "}
+          {trackingData.destination}
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-4">
           <div>
@@ -174,7 +179,7 @@ export default function ShipmentTracking({
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
 
         {timelineSteps.map((step, index) => {
-          const status = getStepStatus(step.key, trackingData.status);
+          const status = getStepStatus(step.key, trackingData.trackingStatus);
           const isCompleted = status === "completed";
           const isCurrent = status === "current";
 
@@ -253,6 +258,24 @@ export default function ShipmentTracking({
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
+            <span className="text-gray-500">Origin:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {trackingData.origin}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-500">Destination:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {trackingData.destination}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-500">Mode:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {trackingData.mode}
+            </span>
+          </div>
+          <div>
             <span className="text-gray-500">Commodity:</span>
             <span className="ml-2 font-medium text-gray-900">
               {trackingData.commodity}
@@ -262,6 +285,12 @@ export default function ShipmentTracking({
             <span className="text-gray-500">Container Type:</span>
             <span className="ml-2 font-medium text-gray-900">
               {trackingData.containerType}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-500">Shipment Status:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {trackingData.shipmentStatus}
             </span>
           </div>
         </div>

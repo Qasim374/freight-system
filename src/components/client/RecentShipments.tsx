@@ -1,10 +1,11 @@
 import React from "react";
 
 interface Shipment {
-  id: string;
-  status: string;
-  containerType: string;
-  commodity: string;
+  id: number;
+  shipmentStatus: string;
+  trackingStatus: string;
+  carrierReference: string | null;
+  eta: string | null;
   createdAt: string;
 }
 
@@ -15,18 +16,29 @@ interface RecentShipmentsProps {
 const RecentShipments: React.FC<RecentShipmentsProps> = ({ shipments }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "quote_requested":
-        return "bg-yellow-100 text-yellow-800";
-      case "quote_received":
-        return "bg-blue-100 text-blue-800";
       case "booked":
-        return "bg-green-100 text-green-800";
-      case "draft_bl":
+        return "bg-blue-100 text-blue-800";
+      case "draft_bl_uploaded":
         return "bg-purple-100 text-purple-800";
-      case "final_bl":
+      case "final_bl_uploaded":
         return "bg-indigo-100 text-indigo-800";
       case "in_transit":
         return "bg-orange-100 text-orange-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getTrackingStatusColor = (status: string) => {
+    switch (status) {
+      case "quote_confirmed":
+        return "bg-green-100 text-green-800";
+      case "booking":
+        return "bg-blue-100 text-blue-800";
+      case "loading":
+        return "bg-yellow-100 text-yellow-800";
+      case "sailed":
+        return "bg-purple-100 text-purple-800";
       case "delivered":
         return "bg-green-100 text-green-800";
       default:
@@ -58,20 +70,36 @@ const RecentShipments: React.FC<RecentShipmentsProps> = ({ shipments }) => {
                   <h4 className="text-sm font-medium text-gray-900">
                     Shipment #{shipment.id}
                   </h4>
-                  <p className="text-sm text-gray-500">
-                    {shipment.containerType} - {shipment.commodity}
-                  </p>
+                  {shipment.carrierReference && (
+                    <p className="text-sm text-gray-500">
+                      Carrier Ref: {shipment.carrierReference}
+                    </p>
+                  )}
+                  {shipment.eta && (
+                    <p className="text-sm text-gray-500">
+                      ETA: {formatDate(shipment.eta)}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-400">
                     Created: {formatDate(shipment.createdAt)}
                   </p>
                 </div>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                    shipment.status
-                  )}`}
-                >
-                  {shipment.status.replace("_", " ").toUpperCase()}
-                </span>
+                <div className="flex flex-col gap-1">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                      shipment.shipmentStatus
+                    )}`}
+                  >
+                    {shipment.shipmentStatus.replace("_", " ").toUpperCase()}
+                  </span>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTrackingStatusColor(
+                      shipment.trackingStatus
+                    )}`}
+                  >
+                    {shipment.trackingStatus.replace("_", " ").toUpperCase()}
+                  </span>
+                </div>
               </div>
             </div>
           ))

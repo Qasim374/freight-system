@@ -1,18 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 interface Shipment {
-  id: string;
-  status: string;
-  containerType: string;
-  commodity: string;
-  weightPerContainer: number;
-  preferredShipmentDate: string;
+  id: number;
+  shipmentStatus: string;
+  trackingStatus: string;
+  carrierReference: string | null;
+  eta: string | null;
   createdAt: string;
-  vendorId?: number;
 }
 
 interface ClientShipmentTableProps {
@@ -39,10 +37,11 @@ export default function ClientShipmentTable({
 
         if (response.ok) {
           const data = await response.json();
-          // Filter to show only shipments that have progressed beyond quote stage
+          // Filter to show only active shipments
           const activeShipments = (data.shipments || []).filter(
             (shipment: Shipment) =>
-              !["quote_requested", "quote_received"].includes(shipment.status)
+              shipment.shipmentStatus !== "booked" ||
+              shipment.trackingStatus !== "quote_confirmed"
           );
           setShipments(activeShipments);
         } else {
@@ -62,20 +61,29 @@ export default function ClientShipmentTable({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "quote_confirmed":
+      case "booked":
         return "bg-blue-100 text-blue-800";
-      case "booking":
-        return "bg-green-100 text-green-800";
-      case "draft_bl":
+      case "draft_bl_uploaded":
         return "bg-purple-100 text-purple-800";
-      case "final_bl":
+      case "final_bl_uploaded":
         return "bg-indigo-100 text-indigo-800";
       case "in_transit":
         return "bg-orange-100 text-orange-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getTrackingStatusColor = (status: string) => {
+    switch (status) {
+      case "quote_confirmed":
+        return "bg-green-100 text-green-800";
+      case "booking":
+        return "bg-blue-100 text-blue-800";
       case "loading":
-        return "bg-purple-100 text-purple-800";
+        return "bg-yellow-100 text-yellow-800";
       case "sailed":
-        return "bg-orange-100 text-orange-800";
+        return "bg-purple-100 text-purple-800";
       case "delivered":
         return "bg-green-100 text-green-800";
       default:
@@ -85,16 +93,25 @@ export default function ClientShipmentTable({
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case "booked":
+        return "BOOKED";
+      case "draft_bl_uploaded":
+        return "DRAFT BL UPLOADED";
+      case "final_bl_uploaded":
+        return "FINAL BL UPLOADED";
+      case "in_transit":
+        return "IN TRANSIT";
+      default:
+        return status.replace("_", " ").toUpperCase();
+    }
+  };
+
+  const getTrackingStatusLabel = (status: string) => {
+    switch (status) {
       case "quote_confirmed":
         return "QUOTE CONFIRMED";
       case "booking":
         return "BOOKING";
-      case "draft_bl":
-        return "DRAFT BL";
-      case "final_bl":
-        return "FINAL BL";
-      case "in_transit":
-        return "IN TRANSIT";
       case "loading":
         return "LOADING";
       case "sailed":
@@ -152,19 +169,16 @@ export default function ClientShipmentTable({
               Shipment ID
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Commodity
+              Carrier Reference
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Container
+              Shipment Status
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Status
+              Tracking Status
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Weight (tons)
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Shipment Date
+              ETA
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
@@ -175,35 +189,36 @@ export default function ClientShipmentTable({
           {shipments.map((shipment) => (
             <tr key={shipment.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                #{shipment.id.substring(0, 8)}
+                #{shipment.id}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {shipment.commodity}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {shipment.containerType}
+                {shipment.carrierReference || "N/A"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span
                   className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                    shipment.status
+                    shipment.shipmentStatus
                   )}`}
                 >
-                  {getStatusLabel(shipment.status)}
+                  {getStatusLabel(shipment.shipmentStatus)}
                 </span>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {shipment.weightPerContainer || 0}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span
+                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTrackingStatusColor(
+                    shipment.trackingStatus
+                  )}`}
+                >
+                  {getTrackingStatusLabel(shipment.trackingStatus)}
+                </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {shipment.preferredShipmentDate
-                  ? formatDate(shipment.preferredShipmentDate)
-                  : "TBD"}
+                {shipment.eta ? formatDate(shipment.eta) : "TBD"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 {/* Conditional buttons based on status */}
-                {["draft_bl", "final_bl", "booking"].includes(
-                  shipment.status
+                {["draft_bl_uploaded", "final_bl_uploaded"].includes(
+                  shipment.shipmentStatus
                 ) ? (
                   <Link
                     href={`/client/shipments/${shipment.id}/bl-workflow`}

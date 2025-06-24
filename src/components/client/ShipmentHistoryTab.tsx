@@ -14,7 +14,7 @@ interface AuditLogDetails {
 
 interface AuditLog {
   id: number;
-  shipmentId: string;
+  shipmentId: number;
   action: string;
   details: AuditLogDetails;
   timestamp: string;
@@ -23,7 +23,7 @@ interface AuditLog {
 }
 
 interface ShipmentHistory {
-  id: string;
+  id: number;
   commodity: string;
   containerType: string;
   status: string;
@@ -36,7 +36,7 @@ export default function ShipmentHistoryTab() {
   const [shipmentHistory, setShipmentHistory] = useState<ShipmentHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [expandedShipments, setExpandedShipments] = useState<Set<string>>(
+  const [expandedShipments, setExpandedShipments] = useState<Set<number>>(
     new Set()
   );
 
@@ -73,7 +73,7 @@ export default function ShipmentHistoryTab() {
     }
   }, [session, fetchShipmentHistory]);
 
-  const toggleShipmentExpansion = (shipmentId: string) => {
+  const toggleShipmentExpansion = (shipmentId: number) => {
     setExpandedShipments((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(shipmentId)) {
@@ -234,7 +234,7 @@ export default function ShipmentHistoryTab() {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-3">
                       <h3 className="text-lg font-medium text-gray-900">
-                        #{shipment.id.substring(0, 8)}
+                        #{shipment.id}
                       </h3>
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(

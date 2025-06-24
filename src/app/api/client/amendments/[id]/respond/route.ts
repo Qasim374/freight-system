@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { amendments, shipments } from "@/lib/schema";
+import { amendments } from "@/lib/schema";
 import { isClientRole } from "@/lib/auth-utils";
 
-// POST - Respond to amendment request
+// POST - Respond to amendment
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const userId = request.headers.get("x-user-id");
   const userRole = request.headers.get("x-user-role");
-  const amendmentId = parseInt(params.id);
+  const { id } = await params;
+  const amendmentId = parseInt(id);
 
   if (!userId || !userRole || !isClientRole(userRole)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,11 +27,11 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const { action } = body;
+    const { response, reason } = body;
 
-    if (!action || !["accept", "cancel"].includes(action)) {
+    if (!response || !["accepted", "rejected"].includes(response)) {
       return NextResponse.json(
-        { error: "Invalid action. Must be 'accept' or 'cancel'" },
+        { error: "Invalid response. Must be 'accepted' or 'rejected'" },
         { status: 400 }
       );
     }
@@ -43,9 +44,7 @@ export async function POST(
         status: amendments.status,
       })
       .from(amendments)
-      .innerJoin(shipments, eq(amendments.shipmentId, shipments.id))
       .where(eq(amendments.id, amendmentId))
-      .where(eq(shipments.clientId, parseInt(userId)))
       .limit(1);
 
     if (amendmentData.length === 0) {
@@ -65,16 +64,17 @@ export async function POST(
       );
     }
 
-    // Update amendment status based on action
-    const newStatus = action === "accept" ? "accepted" : "rejected";
-
+    // Update amendment status
     await db
       .update(amendments)
-      .set({ status: newStatus })
+      .set({
+        status: response === "accepted" ? "accepted" : "rejected",
+        approvedBy: userId,
+      })
       .where(eq(amendments.id, amendmentId));
 
     // If accepted, update shipment status back to draft_bl to continue workflow
-    if (action === "accept") {
+    if (response === "accepted") {
       await db
         .update(shipments)
         .set({ status: "draft_bl" })
@@ -82,10 +82,7 @@ export async function POST(
     }
 
     return NextResponse.json({
-      success: true,
-      message: `Amendment ${
-        action === "accept" ? "accepted" : "cancelled"
-      } successfully`,
+      message: `Amendment ${response} successfully`,
     });
   } catch (error) {
     console.error("Amendment response API error:", error);

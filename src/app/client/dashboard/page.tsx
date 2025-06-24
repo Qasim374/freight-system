@@ -11,65 +11,67 @@ interface DashboardData {
   quoteRequests: number;
   pendingBLs: number;
   unpaidInvoices: number;
+  pendingAmendments: number;
 }
 
-interface Shipment {
-  id: string;
+interface Quote {
+  id: number;
   status: string;
   containerType: string;
   commodity: string;
-  numberOfContainers: number;
-  preferredShipmentDate: string;
+  numContainers: number;
+  shipmentDate: string;
   createdAt: string;
-  quoteDeadline?: string;
-  quoteRequestedAt?: string;
+  finalPrice: string | null;
+  mode: string;
+  weightPerContainer: string | null;
+  collectionAddress: string | null;
+  bidCount: number;
+}
+
+interface Shipment {
+  id: number;
+  shipmentStatus: string;
+  trackingStatus: string;
+  carrierReference: string | null;
+  eta: string | null;
+  createdAt: string;
 }
 
 export default function ClientDashboard() {
   const { data: session } = useSession();
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [stats, setStats] = useState<DashboardData>({
     quoteRequests: 0,
     pendingBLs: 0,
     unpaidInvoices: 0,
+    pendingAmendments: 0,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Fetch shipments
-        const shipmentsResponse = await fetch("/api/client/shipments", {
+        // Fetch dashboard data
+        const dashboardResponse = await fetch("/api/client/dashboard", {
           headers: {
             "x-user-id": session?.user?.id || "",
             "x-user-role": session?.user?.role || "",
           },
         });
 
-        let shipmentsData: { shipments: Shipment[] } = { shipments: [] };
-        if (shipmentsResponse.ok) {
-          shipmentsData = await shipmentsResponse.json();
-          setShipments(shipmentsData.shipments || []);
+        if (dashboardResponse.ok) {
+          const dashboardData = await dashboardResponse.json();
+          setStats({
+            quoteRequests: dashboardData.quoteRequests,
+            pendingBLs: dashboardData.pendingBLs,
+            unpaidInvoices: dashboardData.unpaidInvoices,
+            pendingAmendments: dashboardData.pendingAmendments,
+          });
+          setQuotes(dashboardData.recentQuotes || []);
+          setShipments(dashboardData.recentShipments || []);
         }
-
-        // Count quote requests (shipments with quote_requested status)
-        const quoteRequests = (shipmentsData.shipments || []).filter(
-          (shipment: Shipment) => shipment.status === "quote_requested"
-        ).length;
-
-        // Count pending BLs (shipments with draft_bl status)
-        const pendingBLs = (shipmentsData.shipments || []).filter(
-          (shipment: Shipment) => shipment.status === "draft_bl"
-        ).length;
-
-        // Count unpaid invoices (this would need an invoices API)
-        const unpaidInvoices = 0; // TODO: Implement invoices API
-
-        setStats({
-          quoteRequests,
-          pendingBLs,
-          unpaidInvoices,
-        });
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
       } finally {
@@ -117,7 +119,55 @@ export default function ClientDashboard() {
           quoteRequests={stats.quoteRequests}
           pendingBLs={stats.pendingBLs}
           unpaidInvoices={stats.unpaidInvoices}
+          pendingAmendments={stats.pendingAmendments}
         />
+
+        {/* Recent Quotes */}
+        <div className="mt-8">
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">
+                Recent Quote Requests
+              </h2>
+            </div>
+            <div className="p-6">
+              {quotes.length > 0 ? (
+                <div className="space-y-4">
+                  {quotes.map((quote) => (
+                    <div key={quote.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-medium text-gray-900">
+                            {quote.commodity} - {quote.numContainers}x{" "}
+                            {quote.containerType}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            Mode: {quote.mode} | Shipment Date:{" "}
+                            {new Date(quote.shipmentDate).toLocaleDateString()}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Status: {quote.status.replace("_", " ")} | Bids:{" "}
+                            {quote.bidCount}
+                          </p>
+                        </div>
+                        <Link
+                          href={`/client/quotes/${quote.id}`}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          View Details →
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">
+                  No recent quote requests
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Recent Shipments */}
         <div className="mt-8">
@@ -132,7 +182,7 @@ export default function ClientDashboard() {
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-gray-600 rounded-md flex items-center justify-center">
+                <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
                   <span className="text-white text-lg">📋</span>
                 </div>
               </div>
@@ -153,7 +203,7 @@ export default function ClientDashboard() {
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-gray-600 rounded-md flex items-center justify-center">
+                <div className="w-8 h-8 bg-green-600 rounded-md flex items-center justify-center">
                   <span className="text-white text-lg">📊</span>
                 </div>
               </div>
@@ -174,7 +224,7 @@ export default function ClientDashboard() {
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-gray-600 rounded-md flex items-center justify-center">
+                <div className="w-8 h-8 bg-purple-600 rounded-md flex items-center justify-center">
                   <span className="text-white text-lg">🚢</span>
                 </div>
               </div>
@@ -201,7 +251,9 @@ export default function ClientDashboard() {
                 <h3 className="text-lg font-medium text-gray-900">
                   Amendments
                 </h3>
-                <p className="text-gray-500">Manage amendment requests</p>
+                <p className="text-gray-500">
+                  Review and respond to amendments
+                </p>
               </div>
             </div>
           </Link>

@@ -208,7 +208,7 @@ export default function ClientAmendmentsTable() {
             {amendments.map((amendment) => (
               <tr key={amendment.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  #{amendment.shipmentId.substring(0, 8)}
+                  #{amendment.shipmentId}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                   {amendment.reason}

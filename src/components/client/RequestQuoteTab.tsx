@@ -5,15 +5,18 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 interface QuoteRequest {
-  id: string;
+  id: number;
   status: string;
   containerType: string;
   commodity: string;
-  numberOfContainers: number;
-  preferredShipmentDate: string;
+  numContainers: number;
+  shipmentDate: string;
   createdAt: string;
-  quoteDeadline?: string;
-  quotes?: Array<{ id: number; cost: number; carrierName: string }>;
+  finalPrice: string | null;
+  mode: string;
+  weightPerContainer: string | null;
+  collectionAddress: string | null;
+  bidCount: number;
 }
 
 export default function RequestQuoteTab() {
@@ -49,28 +52,14 @@ export default function RequestQuoteTab() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "quote_requested":
+      case "awaiting_bids":
         return "bg-yellow-100 text-yellow-800";
-      case "quote_received":
+      case "bids_received":
         return "bg-blue-100 text-blue-800";
-      case "quote_confirmed":
-        return "bg-green-100 text-green-800";
-      case "booking":
+      case "client_review":
         return "bg-purple-100 text-purple-800";
       case "booked":
         return "bg-green-100 text-green-800";
-      case "draft_bl":
-        return "bg-orange-100 text-orange-800";
-      case "final_bl":
-        return "bg-blue-100 text-blue-800";
-      case "in_transit":
-        return "bg-purple-100 text-purple-800";
-      case "loading":
-        return "bg-indigo-100 text-indigo-800";
-      case "sailed":
-        return "bg-blue-100 text-blue-800";
-      case "delivered":
-        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -78,28 +67,14 @@ export default function RequestQuoteTab() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "quote_requested":
-        return "Awaiting Vendor Rates";
-      case "quote_received":
-        return "Quotes Received";
-      case "quote_confirmed":
-        return "Quote Confirmed";
-      case "booking":
-        return "Booking in Progress";
+      case "awaiting_bids":
+        return "Awaiting Vendor Bids";
+      case "bids_received":
+        return "Bids Received";
+      case "client_review":
+        return "Under Review";
       case "booked":
         return "Booked";
-      case "draft_bl":
-        return "Draft BL Pending";
-      case "final_bl":
-        return "Final BL Ready";
-      case "in_transit":
-        return "In Transit";
-      case "loading":
-        return "Loading";
-      case "sailed":
-        return "Sailed";
-      case "delivered":
-        return "Delivered";
       default:
         return status.replace("_", " ").toUpperCase();
     }
@@ -107,18 +82,6 @@ export default function RequestQuoteTab() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
-  };
-
-  const getTimeRemaining = (deadline?: string) => {
-    if (!deadline) return null;
-    const now = new Date();
-    const deadlineDate = new Date(deadline);
-    const diff = deadlineDate.getTime() - now.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (diff <= 0) return "Expired";
-    return `${hours}h ${minutes}m remaining`;
   };
 
   if (loading) {
@@ -131,16 +94,6 @@ export default function RequestQuoteTab() {
 
   return (
     <div>
-      {/* <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Quote Requests</h2>
-        <Link
-          href="/client/quotes/new"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700"
-        >
-          Request New Quote
-        </Link>
-      </div> */}
-
       {quoteRequests.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-gray-400 text-6xl mb-4">📋</div>
@@ -152,7 +105,7 @@ export default function RequestQuoteTab() {
           </p>
           <Link
             href="/client/quotes/new"
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
           >
             Create Your First Quote Request
           </Link>
@@ -168,7 +121,7 @@ export default function RequestQuoteTab() {
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
                     <h3 className="text-lg font-medium text-gray-900">
-                      #{request.id.substring(0, 8)}
+                      #{request.id}
                     </h3>
                     <span
                       className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
@@ -189,64 +142,40 @@ export default function RequestQuoteTab() {
                     <div>
                       <span className="text-gray-500">Container:</span>
                       <span className="ml-2 font-medium text-gray-900">
-                        {request.numberOfContainers}x {request.containerType}
+                        {request.numContainers}x {request.containerType}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500">Shipment Date:</span>
                       <span className="ml-2 font-medium text-gray-900">
-                        {formatDate(request.preferredShipmentDate)}
+                        {formatDate(request.shipmentDate)}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Quotes:</span>
+                      <span className="text-gray-500">Mode:</span>
                       <span className="ml-2 font-medium text-gray-900">
-                        {request.quotes?.length || 0} received
+                        {request.mode}
                       </span>
                     </div>
                   </div>
 
-                  {request.quoteDeadline &&
-                    request.status === "quote_requested" && (
-                      <div className="mt-2 text-sm">
-                        <span className="text-gray-500">Deadline:</span>
-                        <span className="ml-2 font-medium text-orange-600">
-                          {getTimeRemaining(request.quoteDeadline)}
+                  <div className="mt-3 flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                      <span>Bids received: {request.bidCount}</span>
+                      {request.finalPrice && (
+                        <span className="ml-4">
+                          Final Price: $
+                          {parseFloat(request.finalPrice).toFixed(2)}
                         </span>
-                      </div>
-                    )}
-                </div>
-
-                <div className="ml-4">
-                  {request.status === "quote_confirmed" ? (
-                    <Link
-                      href={`/client/quotes/${request.id}/result`}
-                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                    >
-                      View Quote
-                    </Link>
-                  ) : request.status === "booked" ||
-                    request.status === "in_transit" ||
-                    request.status === "loading" ||
-                    request.status === "sailed" ? (
-                    <Link
-                      href={`/client/shipments/${request.id}`}
-                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                    >
-                      Track Shipment
-                    </Link>
-                  ) : request.status === "delivered" ? (
-                    <span className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-gray-100">
-                      Completed
-                    </span>
-                  ) : (
+                      )}
+                    </div>
                     <Link
                       href={`/client/quotes/${request.id}`}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
                       View Details
                     </Link>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>

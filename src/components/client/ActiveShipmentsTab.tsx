@@ -5,16 +5,11 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 interface ActiveShipment {
-  id: string;
-  status: string;
-  commodity: string;
-  containerType: string;
-  numberOfContainers: number;
-  carrierReference?: string;
-  eta?: string;
-  finalPrice?: number;
-  hasDraftBL?: boolean;
-  hasFinalBL?: boolean;
+  id: number;
+  shipmentStatus: string;
+  trackingStatus: string;
+  carrierReference: string | null;
+  eta: string | null;
   createdAt: string;
 }
 
@@ -38,14 +33,8 @@ export default function ActiveShipmentsTab() {
           // Filter to show only active shipments (booked and beyond)
           const active = (data.shipments || []).filter(
             (shipment: ActiveShipment) =>
-              [
-                "booking",
-                "draft_bl",
-                "final_bl",
-                "in_transit",
-                "loading",
-                "sailed",
-              ].includes(shipment.status)
+              shipment.shipmentStatus !== "booked" ||
+              shipment.trackingStatus !== "quote_confirmed"
           );
           setActiveShipments(active);
         }
@@ -63,18 +52,29 @@ export default function ActiveShipmentsTab() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "booking":
-        return "bg-green-100 text-green-800";
-      case "draft_bl":
+      case "booked":
+        return "bg-blue-100 text-blue-800";
+      case "draft_bl_uploaded":
         return "bg-purple-100 text-purple-800";
-      case "final_bl":
+      case "final_bl_uploaded":
         return "bg-indigo-100 text-indigo-800";
       case "in_transit":
         return "bg-orange-100 text-orange-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getTrackingStatusColor = (status: string) => {
+    switch (status) {
+      case "booking":
+        return "bg-green-100 text-green-800";
       case "loading":
         return "bg-blue-100 text-blue-800";
       case "sailed":
         return "bg-yellow-100 text-yellow-800";
+      case "delivered":
+        return "bg-green-100 text-green-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -82,18 +82,29 @@ export default function ActiveShipmentsTab() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "booking":
+      case "booked":
         return "BOOKED";
-      case "draft_bl":
-        return "DRAFT BL";
-      case "final_bl":
-        return "FINAL BL";
+      case "draft_bl_uploaded":
+        return "DRAFT BL UPLOADED";
+      case "final_bl_uploaded":
+        return "FINAL BL UPLOADED";
       case "in_transit":
         return "IN TRANSIT";
+      default:
+        return status.replace("_", " ").toUpperCase();
+    }
+  };
+
+  const getTrackingStatusLabel = (status: string) => {
+    switch (status) {
+      case "booking":
+        return "BOOKING";
       case "loading":
         return "LOADING";
       case "sailed":
         return "SAILED";
+      case "delivered":
+        return "DELIVERED";
       default:
         return status.replace("_", " ").toUpperCase();
     }
@@ -102,14 +113,6 @@ export default function ActiveShipmentsTab() {
   const formatDate = (dateString?: string) => {
     if (!dateString) return "TBD";
     return new Date(dateString).toLocaleDateString();
-  };
-
-  const formatPrice = (price?: number) => {
-    if (!price) return "TBD";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
   };
 
   if (loading) {
@@ -155,30 +158,25 @@ export default function ActiveShipmentsTab() {
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
                     <h3 className="text-lg font-medium text-gray-900">
-                      #{shipment.id.substring(0, 8)}
+                      #{shipment.id}
                     </h3>
                     <span
                       className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                        shipment.status
+                        shipment.shipmentStatus
                       )}`}
                     >
-                      {getStatusLabel(shipment.status)}
+                      {getStatusLabel(shipment.shipmentStatus)}
+                    </span>
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTrackingStatusColor(
+                        shipment.trackingStatus
+                      )}`}
+                    >
+                      {getTrackingStatusLabel(shipment.trackingStatus)}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
-                    <div>
-                      <span className="text-gray-500">Commodity:</span>
-                      <span className="ml-2 font-medium text-gray-900">
-                        {shipment.commodity}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Container:</span>
-                      <span className="ml-2 font-medium text-gray-900">
-                        {shipment.numberOfContainers}x {shipment.containerType}
-                      </span>
-                    </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-3">
                     <div>
                       <span className="text-gray-500">Carrier Ref:</span>
                       <span className="ml-2 font-medium text-gray-900">
@@ -191,15 +189,20 @@ export default function ActiveShipmentsTab() {
                         {formatDate(shipment.eta)}
                       </span>
                     </div>
+                    <div>
+                      <span className="text-gray-500">Created:</span>
+                      <span className="ml-2 font-medium text-gray-900">
+                        {formatDate(shipment.createdAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="ml-4 flex flex-col space-y-2">
-                  {/* Conditional navigation based on status - direct redirects */}
-                  {["draft_bl", "final_bl", "booking"].includes(
-                    shipment.status
+                  {/* Conditional navigation based on status */}
+                  {["draft_bl_uploaded", "final_bl_uploaded"].includes(
+                    shipment.shipmentStatus
                   ) ? (
-                    // BL Workflow actions - direct redirect
                     <Link
                       href={`/client/shipments/${shipment.id}/bl-workflow`}
                       className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
@@ -207,7 +210,6 @@ export default function ActiveShipmentsTab() {
                       Manage BL Workflow
                     </Link>
                   ) : (
-                    // Tracking actions for other statuses - direct redirect
                     <Link
                       href={`/client/shipments/${shipment.id}/tracking`}
                       className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"

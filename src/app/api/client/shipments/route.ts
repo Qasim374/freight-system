@@ -15,13 +15,24 @@ export async function GET(request: Request) {
 
   try {
     const clientShipments = await db
-      .select()
+      .select({
+        id: shipments.id,
+        shipmentStatus: shipments.shipmentStatus,
+        trackingStatus: shipments.trackingStatus,
+        carrierReference: shipments.carrierReference,
+        eta: shipments.eta,
+        createdAt: shipments.createdAt,
+      })
       .from(shipments)
       .where(eq(shipments.clientId, parseInt(userId)))
       .orderBy(desc(shipments.createdAt));
 
     return NextResponse.json({
-      shipments: clientShipments,
+      shipments: clientShipments.map((shipment) => ({
+        ...shipment,
+        createdAt: shipment.createdAt.toISOString(),
+        eta: shipment.eta?.toISOString() || null,
+      })),
     });
   } catch (error) {
     console.error("Client shipments API error:", error);
