@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { amendments, shipments } from "@/lib/schema";
+import { amendments, billsOfLading, shipments, quotes } from "@/lib/schema";
 import { isClientRole } from "@/lib/auth-utils";
 
 // GET - Get all amendments for client
@@ -16,34 +16,69 @@ export async function GET(request: Request) {
   }
 
   try {
-    let query = db
+    const baseQuery = db
       .select({
         id: amendments.id,
-        shipmentId: amendments.shipmentId,
+        blId: amendments.blId,
+        shipmentId: shipments.id,
         reason: amendments.reason,
         extraCost: amendments.extraCost,
+        markupAmount: amendments.markupAmount,
         delayDays: amendments.delayDays,
         status: amendments.status,
+        initiatedBy: amendments.initiatedBy,
+        approvedBy: amendments.approvedBy,
+        clientResponseAt: amendments.clientResponseAt,
+        adminReviewAt: amendments.adminReviewAt,
+        vendorReplyAt: amendments.vendorReplyAt,
         createdAt: amendments.createdAt,
-        commodity: shipments.commodity,
-        containerType: shipments.containerType,
+        // Quote details for shipment info
+        commodity: quotes.commodity,
+        containerType: quotes.containerType,
+        mode: quotes.mode,
+        collectionAddress: quotes.collectionAddress,
+        shipmentDate: quotes.shipmentDate,
       })
       .from(amendments)
-      .innerJoin(shipments, eq(amendments.shipmentId, shipments.id))
-      .where(eq(shipments.clientId, parseInt(userId)));
+      .innerJoin(billsOfLading, eq(amendments.blId, billsOfLading.id))
+      .innerJoin(shipments, eq(billsOfLading.shipmentId, shipments.id))
+      .innerJoin(quotes, eq(shipments.quoteId, quotes.id));
+
+    // Build where conditions
+    const whereConditions = [eq(shipments.clientId, parseInt(userId))];
 
     // Apply status filter if provided
     if (statusFilter && statusFilter !== "all") {
-      query = query.where(eq(amendments.status, statusFilter));
+      whereConditions.push(
+        eq(
+          amendments.status,
+          statusFilter as
+            | "requested"
+            | "vendor_replied"
+            | "admin_review"
+            | "client_review"
+            | "accepted"
+            | "rejected"
+        )
+      );
     }
 
-    const amendmentsData = await query.orderBy(amendments.createdAt);
+    const amendmentsData = await baseQuery
+      .where(and(...whereConditions))
+      .orderBy(amendments.createdAt);
 
     return NextResponse.json({
       amendments: amendmentsData.map((amendment) => ({
         ...amendment,
-        extraCost: Number(amendment.extraCost),
-        createdAt: amendment.createdAt.toISOString(),
+        extraCost: amendment.extraCost ? Number(amendment.extraCost) : null,
+        markupAmount: amendment.markupAmount
+          ? Number(amendment.markupAmount)
+          : null,
+        clientResponseAt: amendment.clientResponseAt?.toISOString() || null,
+        adminReviewAt: amendment.adminReviewAt?.toISOString() || null,
+        vendorReplyAt: amendment.vendorReplyAt?.toISOString() || null,
+        createdAt:
+          amendment.createdAt?.toISOString() || new Date().toISOString(),
       })),
     });
   } catch (error) {

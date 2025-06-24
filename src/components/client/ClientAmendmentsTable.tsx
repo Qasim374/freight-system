@@ -6,14 +6,23 @@ import AmendmentResponseModal from "./AmendmentResponseModal";
 
 interface Amendment {
   id: number;
-  shipmentId: string;
+  shipmentId: number;
   reason: string;
-  extraCost: number;
-  delayDays: number;
+  extraCost: number | null;
+  markupAmount: number | null;
+  delayDays: number | null;
   status: string;
+  initiatedBy: string;
+  approvedBy: string | null;
+  clientResponseAt: string | null;
+  adminReviewAt: string | null;
+  vendorReplyAt: string | null;
   createdAt: string;
   commodity?: string;
   containerType?: string;
+  mode?: string;
+  collectionAddress?: string;
+  shipmentDate?: string;
 }
 
 export default function ClientAmendmentsTable() {
@@ -113,16 +122,6 @@ export default function ClientAmendmentsTable() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center py-8">
@@ -185,6 +184,9 @@ export default function ClientAmendmentsTable() {
                 Shipment ID
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Shipment Details
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Reason
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -197,9 +199,6 @@ export default function ClientAmendmentsTable() {
                 Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Created
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -210,14 +209,23 @@ export default function ClientAmendmentsTable() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   #{amendment.shipmentId}
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {amendment.commodity} ({amendment.containerType})
+                  <br />
+                  <span className="text-xs text-gray-400">
+                    {amendment.mode}
+                  </span>
+                </td>
                 <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                   {amendment.reason}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  ${amendment.extraCost.toFixed(2)}
+                  {amendment.extraCost
+                    ? `$${amendment.extraCost.toFixed(2)}`
+                    : "N/A"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {amendment.delayDays}
+                  {amendment.delayDays || "N/A"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <span
@@ -227,9 +235,6 @@ export default function ClientAmendmentsTable() {
                   >
                     {getStatusLabel(amendment.status)}
                   </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatDate(amendment.createdAt)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {amendment.status === "client_review" && (

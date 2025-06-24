@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 
-interface AuditLogDetails {
+interface LogDetails {
   description?: string;
   amount?: number;
   reason?: string;
@@ -12,23 +12,28 @@ interface AuditLogDetails {
   delayDays?: number;
 }
 
-interface AuditLog {
+interface ShipmentLog {
   id: number;
-  shipmentId: number;
   action: string;
-  details: AuditLogDetails;
+  details: string;
   timestamp: string;
-  actorId: number;
-  actorName?: string;
+  actor: string;
 }
 
 interface ShipmentHistory {
   id: number;
+  shipmentStatus: string;
+  trackingStatus: string;
+  carrierReference: string | null;
+  eta: string | null;
+  createdAt: string;
   commodity: string;
   containerType: string;
-  status: string;
-  createdAt: string;
-  auditLogs: AuditLog[];
+  mode: string;
+  collectionAddress: string | null;
+  shipmentDate: string | null;
+  finalPrice: number | null;
+  logs: ShipmentLog[];
 }
 
 export default function ShipmentHistoryTab() {
@@ -89,28 +94,30 @@ export default function ShipmentHistoryTab() {
     switch (action.toLowerCase()) {
       case "quote_requested":
         return "📋";
-      case "quote_received":
+      case "quote_submitted":
         return "📨";
-      case "quote_confirmed":
+      case "quote_selected":
         return "✅";
-      case "shipment_booked":
+      case "quote_booked":
         return "🚢";
       case "draft_bl_uploaded":
         return "📄";
       case "bl_approved":
         return "✅";
-      case "amendment_requested":
+      case "requested_amendment":
         return "⚠️";
       case "amendment_accepted":
         return "✅";
       case "amendment_rejected":
         return "❌";
-      case "invoice_generated":
-        return "💰";
-      case "payment_received":
+      case "final_bl_uploaded":
+        return "📄";
+      case "shipment_sailed":
+        return "🚢";
+      case "payment_uploaded":
         return "💳";
-      case "shipment_delivered":
-        return "🎉";
+      case "markup_added":
+        return "💰";
       default:
         return "📝";
     }
@@ -119,19 +126,21 @@ export default function ShipmentHistoryTab() {
   const getActionColor = (action: string) => {
     switch (action.toLowerCase()) {
       case "quote_requested":
-      case "quote_received":
+      case "quote_submitted":
         return "text-blue-600";
-      case "quote_confirmed":
-      case "shipment_booked":
+      case "quote_selected":
+      case "quote_booked":
       case "bl_approved":
       case "amendment_accepted":
-      case "payment_received":
-      case "shipment_delivered":
+      case "payment_uploaded":
+      case "final_bl_uploaded":
         return "text-green-600";
-      case "amendment_requested":
+      case "requested_amendment":
         return "text-orange-600";
       case "amendment_rejected":
         return "text-red-600";
+      case "markup_added":
+        return "text-purple-600";
       default:
         return "text-gray-600";
     }
@@ -160,9 +169,9 @@ export default function ShipmentHistoryTab() {
         return "bg-yellow-100 text-yellow-800";
       case "quote_confirmed":
         return "bg-indigo-100 text-indigo-800";
-      case "draft_bl":
+      case "draft_bl_uploaded":
         return "bg-orange-100 text-orange-800";
-      case "final_bl":
+      case "final_bl_uploaded":
         return "bg-purple-100 text-purple-800";
       case "in_transit":
         return "bg-blue-100 text-blue-800";
@@ -211,129 +220,155 @@ export default function ShipmentHistoryTab() {
 
       {shipmentHistory.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-gray-400 text-6xl mb-4">📊</div>
+          <div className="text-gray-400 text-6xl mb-4">📦</div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             No Shipment History
           </h3>
           <p className="text-gray-500">
-            Shipment history will appear here once you have completed shipments.
+            Shipment history will appear here once you have shipments.
           </p>
         </div>
       ) : (
         <div className="space-y-6">
-          {shipmentHistory.map((shipment) => {
-            const isExpanded = expandedShipments.has(shipment.id);
-
-            return (
-              <div
-                key={shipment.id}
-                className="bg-white border border-gray-200 rounded-lg overflow-hidden"
-              >
-                {/* Shipment Header */}
-                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
+          {shipmentHistory.map((shipment) => (
+            <div
+              key={shipment.id}
+              className="bg-white border border-gray-200 rounded-lg shadow-sm"
+            >
+              {/* Shipment Header */}
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-4">
                       <h3 className="text-lg font-medium text-gray-900">
-                        #{shipment.id}
+                        Shipment #{shipment.id}
                       </h3>
                       <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                          shipment.status
+                        className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                          shipment.trackingStatus
                         )}`}
                       >
-                        {shipment.status.replace("_", " ").toUpperCase()}
+                        {shipment.trackingStatus
+                          .replace("_", " ")
+                          .toUpperCase()}
                       </span>
                     </div>
-                    <button
-                      onClick={() => toggleShipmentExpansion(shipment.id)}
-                      className="text-gray-500 hover:text-gray-700 transition-transform duration-200"
-                    >
-                      {isExpanded ? "▼" : "▶"}
-                    </button>
-                  </div>
-                  <div className="mt-2 text-sm text-gray-600">
-                    {shipment.commodity} • {shipment.containerType} • Created{" "}
-                    {formatDate(shipment.createdAt)}
-                  </div>
-                </div>
-
-                {/* Audit Timeline */}
-                {isExpanded && (
-                  <div className="p-6">
-                    {shipment.auditLogs.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        No audit logs available for this shipment
+                    <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                      <div>
+                        <span className="font-medium">Commodity:</span>{" "}
+                        {shipment.commodity}
                       </div>
-                    ) : (
-                      <div className="relative">
-                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-
-                        {shipment.auditLogs.map((log, index) => (
-                          <div
-                            key={`${shipment.id}-${log.id}-${index}`}
-                            className="relative flex items-start mb-6 last:mb-0"
-                          >
-                            {/* Timeline dot */}
-                            <div className="absolute left-4 w-8 h-8 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center">
-                              <span className="text-sm">
-                                {getActionIcon(log.action)}
-                              </span>
-                            </div>
-
-                            {/* Content */}
-                            <div className="ml-12 flex-1">
-                              <div
-                                className={`font-medium ${getActionColor(
-                                  log.action
-                                )}`}
-                              >
-                                {log.action.replace(/_/g, " ").toUpperCase()}
-                              </div>
-                              <div className="text-sm text-gray-500 mt-1">
-                                {log.details?.description || "Action performed"}
-                              </div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                {formatDate(log.timestamp)}
-                                {log.actorName && ` • by ${log.actorName}`}
-                              </div>
-
-                              {/* Additional details */}
-                              {log.details && (
-                                <div className="mt-2 text-sm text-gray-600 bg-gray-50 rounded p-2">
-                                  {log.details.amount && (
-                                    <div>Amount: ${log.details.amount}</div>
-                                  )}
-                                  {log.details.reason && (
-                                    <div>Reason: {log.details.reason}</div>
-                                  )}
-                                  {log.details.carrierReference && (
-                                    <div>
-                                      Carrier Ref:{" "}
-                                      {log.details.carrierReference}
-                                    </div>
-                                  )}
-                                  {log.details.extraCost && (
-                                    <div>
-                                      Extra Cost: ${log.details.extraCost}
-                                    </div>
-                                  )}
-                                  {log.details.delayDays && (
-                                    <div>
-                                      Delay: {log.details.delayDays} days
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                      <div>
+                        <span className="font-medium">Container:</span>{" "}
+                        {shipment.containerType}
+                      </div>
+                      <div>
+                        <span className="font-medium">Mode:</span>{" "}
+                        {shipment.mode}
+                      </div>
+                      <div>
+                        <span className="font-medium">Price:</span>{" "}
+                        {shipment.finalPrice
+                          ? `$${shipment.finalPrice}`
+                          : "N/A"}
+                      </div>
+                    </div>
+                    {shipment.carrierReference && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        <span className="font-medium">Carrier Ref:</span>{" "}
+                        {shipment.carrierReference}
                       </div>
                     )}
                   </div>
-                )}
+                  <button
+                    onClick={() => toggleShipmentExpansion(shipment.id)}
+                    className="ml-4 p-2 text-gray-400 hover:text-gray-600"
+                  >
+                    {expandedShipments.has(shipment.id) ? (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 15l7-7 7 7"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
-            );
-          })}
+
+              {/* Shipment Logs */}
+              {expandedShipments.has(shipment.id) && (
+                <div className="p-6">
+                  <h4 className="text-md font-medium text-gray-900 mb-4">
+                    Activity Timeline
+                  </h4>
+                  <div className="space-y-4">
+                    {shipment.logs.length === 0 ? (
+                      <p className="text-gray-500 text-center py-4">
+                        No activity logs available
+                      </p>
+                    ) : (
+                      shipment.logs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex-shrink-0">
+                            <span className="text-lg">
+                              {getActionIcon(log.action)}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p
+                                className={`text-sm font-medium ${getActionColor(
+                                  log.action
+                                )}`}
+                              >
+                                {log.action.replace("_", " ").toUpperCase()}
+                              </p>
+                              <span className="text-xs text-gray-500">
+                                {formatDate(log.timestamp)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {log.details}
+                            </p>
+                            {log.actor && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                By: {log.actor}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

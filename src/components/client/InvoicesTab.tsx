@@ -5,12 +5,21 @@ import { useSession } from "next-auth/react";
 
 interface Invoice {
   id: number;
-  shipmentId: string;
-  amount: number;
-  status: string;
-  dueDate: string;
+  shipmentId: number;
+  userId: number;
+  amount: number | null;
   type: string;
+  status: string;
+  dueDate: string | null;
+  paymentMethod: string | null;
+  proofUploaded: string | null;
+  adminMarginReportGenerated: boolean;
   createdAt: string;
+  commodity?: string;
+  containerType?: string;
+  mode?: string;
+  collectionAddress?: string;
+  shipmentDate?: string;
 }
 
 export default function InvoicesTab() {
@@ -72,11 +81,13 @@ export default function InvoicesTab() {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString();
   };
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | null) => {
+    if (!price) return "N/A";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
@@ -147,6 +158,9 @@ export default function InvoicesTab() {
                   Shipment ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Shipment Details
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -168,6 +182,13 @@ export default function InvoicesTab() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     #{invoice.shipmentId}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {invoice.commodity} ({invoice.containerType})
+                    <br />
+                    <span className="text-xs text-gray-400">
+                      {invoice.mode}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatPrice(invoice.amount)}
