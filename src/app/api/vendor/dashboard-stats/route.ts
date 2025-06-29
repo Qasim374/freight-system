@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq, and, count } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { shipments, quotes, billsOfLading } from "@/lib/schema";
+import { quotes, quoteBids, shipments, billsOfLading } from "@/lib/schema";
 import { isVendorRole } from "@/lib/auth-utils";
 
 export async function GET(request: Request) {
@@ -16,29 +16,29 @@ export async function GET(request: Request) {
   try {
     const vendorId = parseInt(userId);
 
-    // Get open requests (shipments with quote_requested status)
+    // Get open quote requests (awaiting_bids status)
     const [openRequests] = await db
       .select({ count: count() })
-      .from(shipments)
-      .where(eq(shipments.status, "quote_requested"));
+      .from(quotes)
+      .where(eq(quotes.status, "awaiting_bids"));
 
     // Get submitted quotes by this vendor
     const [submittedQuotes] = await db
       .select({ count: count() })
-      .from(quotes)
-      .where(eq(quotes.vendorId, vendorId));
+      .from(quoteBids)
+      .where(eq(quoteBids.vendorId, vendorId));
 
-    // Get jobs won by this vendor
+    // Get jobs won by this vendor (shipments where vendor is assigned)
     const [jobsWon] = await db
       .select({ count: count() })
-      .from(quotes)
-      .where(and(eq(quotes.vendorId, vendorId), eq(quotes.isWinner, true)));
+      .from(shipments)
+      .where(eq(shipments.vendorId, vendorId));
 
     // Get BLs uploaded by this vendor
     const [blsUploaded] = await db
       .select({ count: count() })
       .from(billsOfLading)
-      .where(eq(billsOfLading.uploadedBy, vendorId));
+      .where(eq(billsOfLading.vendorId, vendorId));
 
     return NextResponse.json({
       openRequests: openRequests.count,

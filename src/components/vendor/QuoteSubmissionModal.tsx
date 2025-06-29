@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 
 interface QuoteRequest {
-  id: string;
+  id: number;
   containerType: string;
   commodity: string;
   origin: string;
@@ -51,7 +51,7 @@ export default function QuoteSubmissionModal({
           "x-user-role": session?.user?.role || "",
         },
         body: JSON.stringify({
-          shipmentId: request.id,
+          quoteRequestId: request.id,
           cost: parseFloat(formData.cost),
           sailingDate: formData.sailingDate,
           carrierName: formData.carrierName,
@@ -88,7 +88,7 @@ export default function QuoteSubmissionModal({
         <div className="mt-3">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-gray-900">
-              Submit Quote for Shipment #{request.id.substring(0, 8)}
+              Submit Quote for Shipment #{request.id.toString().substring(0, 8)}
             </h3>
             <button
               onClick={onClose}

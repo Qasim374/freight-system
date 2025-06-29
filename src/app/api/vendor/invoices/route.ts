@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { invoices, quotes, shipments } from "@/lib/schema";
+import { invoices, shipments, quotes } from "@/lib/schema";
 import { isVendorRole } from "@/lib/auth-utils";
 
 export async function GET(request: Request) {
@@ -16,37 +16,31 @@ export async function GET(request: Request) {
   try {
     const vendorId = parseInt(userId);
 
-    // Get invoices for shipments where this vendor won the quote
+    // Get invoices for shipments assigned to this vendor
     const vendorInvoices = await db
       .select({
         id: invoices.id,
         shipmentId: invoices.shipmentId,
-        invoiceNumber: invoices.invoiceNumber,
+        invoiceNumber: invoices.id, // Using id as invoice number for now
         amount: invoices.amount,
         status: invoices.status,
         dueDate: invoices.dueDate,
-        paidDate: invoices.paidDate,
-        invoiceUrl: invoices.invoiceUrl,
-        containerType: shipments.containerType,
-        commodity: shipments.commodity,
-        origin: shipments.origin,
-        destination: shipments.destination,
+        paidDate: invoices.createdAt, // Using createdAt as paidDate for now
+        invoiceUrl: invoices.proofUploaded,
+        containerType: quotes.containerType,
+        commodity: quotes.commodity,
+        collectionAddress: quotes.collectionAddress,
       })
       .from(invoices)
       .leftJoin(shipments, eq(invoices.shipmentId, shipments.id))
-      .leftJoin(quotes, eq(shipments.id, quotes.shipmentId))
-      .where(
-        and(
-          eq(quotes.vendorId, vendorId),
-          eq(quotes.isWinner, true)
-        )
-      );
+      .leftJoin(quotes, eq(shipments.quoteId, quotes.id))
+      .where(eq(shipments.vendorId, vendorId));
 
     return NextResponse.json({
       invoices: vendorInvoices.map((invoice) => ({
         id: invoice.id,
         shipmentId: invoice.shipmentId,
-        invoiceNumber: invoice.invoiceNumber,
+        invoiceNumber: `INV-${invoice.invoiceNumber}`,
         amount: invoice.amount,
         status: invoice.status,
         dueDate: invoice.dueDate.toISOString(),
@@ -54,8 +48,8 @@ export async function GET(request: Request) {
         invoiceUrl: invoice.invoiceUrl,
         containerType: invoice.containerType,
         commodity: invoice.commodity,
-        origin: invoice.origin,
-        destination: invoice.destination,
+        origin: invoice.collectionAddress, // Using collectionAddress as origin
+        destination: "N/A", // Not available in current schema
       })),
     });
   } catch (error) {
@@ -65,4 +59,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

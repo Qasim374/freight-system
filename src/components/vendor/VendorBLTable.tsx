@@ -1,7 +1,7 @@
 "use client";
 
 interface WonShipment {
-  id: string;
+  id: number;
   containerType: string;
   commodity: string;
   origin: string;
@@ -11,8 +11,8 @@ interface WonShipment {
   cost: string;
   sailingDate: string;
   carrierName: string;
-  draftBL?: string;
-  finalBL?: string;
+  draftBl?: string;
+  finalBl?: string;
 }
 
 interface VendorBLTableProps {
@@ -85,7 +85,7 @@ export default function VendorBLTable({
           {shipments.map((shipment) => (
             <tr key={shipment.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                #{shipment.id.substring(0, 8)}
+                #{shipment.id.toString().substring(0, 8)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <div>
@@ -109,27 +109,27 @@ export default function VendorBLTable({
                 <div className="flex flex-col space-y-1">
                   <span
                     className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      shipment.draftBL
+                      shipment.draftBl
                         ? "bg-green-100 text-green-800"
                         : "bg-yellow-100 text-yellow-800"
                     }`}
                   >
-                    Draft: {shipment.draftBL ? "Uploaded" : "Pending"}
+                    Draft: {shipment.draftBl ? "Uploaded" : "Pending"}
                   </span>
                   <span
                     className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      shipment.finalBL
+                      shipment.finalBl
                         ? "bg-green-100 text-green-800"
                         : "bg-gray-100 text-gray-800"
                     }`}
                   >
-                    Final: {shipment.finalBL ? "Uploaded" : "Pending"}
+                    Final: {shipment.finalBl ? "Uploaded" : "Pending"}
                   </span>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div className="flex flex-col space-y-2">
-                  {!shipment.draftBL && (
+                  {!shipment.draftBl && (
                     <button
                       onClick={() => onUploadBL(shipment, "draft")}
                       className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors text-xs"
@@ -137,7 +137,7 @@ export default function VendorBLTable({
                       Upload Draft BL
                     </button>
                   )}
-                  {shipment.draftBL && !shipment.finalBL && (
+                  {shipment.draftBl && !shipment.finalBl && (
                     <button
                       onClick={() => onUploadBL(shipment, "final")}
                       className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md transition-colors text-xs"
@@ -145,17 +145,17 @@ export default function VendorBLTable({
                       Upload Final BL
                     </button>
                   )}
-                  {shipment.draftBL && (
+                  {shipment.draftBl && (
                     <button
-                      onClick={() => window.open(shipment.draftBL, "_blank")}
+                      onClick={() => window.open(shipment.draftBl, "_blank")}
                       className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md transition-colors text-xs"
                     >
                       View Draft BL
                     </button>
                   )}
-                  {shipment.finalBL && (
+                  {shipment.finalBl && (
                     <button
-                      onClick={() => window.open(shipment.finalBL, "_blank")}
+                      onClick={() => window.open(shipment.finalBl, "_blank")}
                       className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md transition-colors text-xs"
                     >
                       View Final BL

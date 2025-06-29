@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { quotes } from "@/lib/schema";
+import { quoteBids } from "@/lib/schema";
 import { isVendorRole } from "@/lib/auth-utils";
 
 export async function POST(request: Request) {
@@ -15,9 +15,9 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { shipmentId, cost, sailingDate, carrierName } = body;
+    const { quoteRequestId, cost, sailingDate, carrierName } = body;
 
-    if (!shipmentId || !cost || !sailingDate || !carrierName) {
+    if (!quoteRequestId || !cost || !sailingDate || !carrierName) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -26,30 +26,33 @@ export async function POST(request: Request) {
 
     const vendorId = parseInt(userId);
 
-    // Check if vendor already submitted a quote for this shipment
+    // Check if vendor already submitted a quote for this request
     const existingQuote = await db
       .select()
-      .from(quotes)
+      .from(quoteBids)
       .where(
-        eq(quotes.shipmentId, shipmentId) && eq(quotes.vendorId, vendorId)
+        and(
+          eq(quoteBids.quoteId, quoteRequestId),
+          eq(quoteBids.vendorId, vendorId)
+        )
       );
 
     if (existingQuote.length > 0) {
       return NextResponse.json(
-        { error: "You have already submitted a quote for this shipment" },
+        { error: "You have already submitted a quote for this request" },
         { status: 400 }
       );
     }
 
-    // Insert the quote
-    const newQuote = await db.insert(quotes).values({
-      shipmentId,
+    // Insert the quote bid
+    const newQuote = await db.insert(quoteBids).values({
+      quoteId: quoteRequestId,
       vendorId,
-      cost: cost.toString(),
+      costUsd: cost.toString(),
       sailingDate: new Date(sailingDate),
       carrierName,
       status: "submitted",
-      submittedAt: new Date(),
+      createdAt: new Date(),
     });
 
     return NextResponse.json({

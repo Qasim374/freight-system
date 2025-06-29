@@ -6,7 +6,7 @@ import VendorQuoteTable from "@/components/vendor/VendorQuoteTable";
 import QuoteSubmissionModal from "@/components/vendor/QuoteSubmissionModal";
 
 interface QuoteRequest {
-  id: string;
+  id: number;
   containerType: string;
   commodity: string;
   origin: string;

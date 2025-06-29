@@ -12,7 +12,7 @@ interface VendorStats {
 }
 
 interface RecentRequest {
-  id: string;
+  id: number;
   containerType: string;
   commodity: string;
   status: string;
@@ -331,7 +331,7 @@ export default function VendorDashboard() {
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="text-sm font-medium text-gray-900">
-                        Shipment #{request.id.substring(0, 8)}
+                        Shipment #{request.id.toString().substring(0, 8)}
                       </h4>
                       <p className="text-sm text-gray-500">
                         {request.containerType} Container - {request.commodity}

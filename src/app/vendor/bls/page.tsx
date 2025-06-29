@@ -12,12 +12,11 @@ interface WonShipment {
   origin: string;
   destination: string;
   status: string;
-  quoteId: number;
   cost: string;
   sailingDate: string;
   carrierName: string;
-  draftBL?: string;
-  finalBL?: string;
+  draftBl?: string;
+  finalBl?: string;
 }
 
 export default function VendorBLsPage() {

@@ -2,7 +2,7 @@
 
 interface VendorInvoice {
   id: string;
-  shipmentId: string;
+  shipmentId: number;
   invoiceNumber: string;
   amount: string;
   status: string;
@@ -58,7 +58,7 @@ export default function VendorInvoiceTable({
       // Fallback: generate a simple invoice download
       const invoiceContent = `
 Invoice #${invoice.invoiceNumber}
-Shipment #${invoice.shipmentId.substring(0, 8)}
+Shipment #${invoice.shipmentId.toString().substring(0, 8)}
 Amount: $${parseFloat(invoice.amount).toLocaleString()}
 Status: ${invoice.status}
 Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}
@@ -122,7 +122,7 @@ Commodity: ${invoice.commodity}
                 {invoice.invoiceNumber}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                #{invoice.shipmentId.substring(0, 8)}
+                #{invoice.shipmentId.toString().substring(0, 8)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <div>

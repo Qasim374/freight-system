@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { shipments, users } from "@/lib/schema";
+import { quotes, users } from "@/lib/schema";
 import { isVendorRole } from "@/lib/auth-utils";
 
 export async function GET(request: Request) {
@@ -14,31 +14,30 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Get quote requests (shipments with quote_requested status)
-    const quoteRequests = await db
+    // Get quote requests (awaiting_bids status)
+    const requests = await db
       .select({
-        id: shipments.id,
-        containerType: shipments.containerType,
-        commodity: shipments.commodity,
-        origin: shipments.origin,
-        destination: shipments.destination,
-        status: shipments.status,
-        createdAt: shipments.createdAt,
-        clientId: shipments.clientId,
+        id: quotes.id,
+        containerType: quotes.containerType,
+        commodity: quotes.commodity,
+        collectionAddress: quotes.collectionAddress,
+        status: quotes.status,
+        createdAt: quotes.createdAt,
+        clientId: quotes.clientId,
         clientName: users.company,
       })
-      .from(shipments)
-      .leftJoin(users, eq(shipments.clientId, users.id))
-      .where(eq(shipments.status, "quote_requested"))
-      .orderBy(desc(shipments.createdAt));
+      .from(quotes)
+      .leftJoin(users, eq(quotes.clientId, users.id))
+      .where(eq(quotes.status, "awaiting_bids"))
+      .orderBy(desc(quotes.createdAt));
 
     return NextResponse.json({
-      requests: quoteRequests.map((request) => ({
+      requests: requests.map((request) => ({
         id: request.id,
         containerType: request.containerType,
         commodity: request.commodity,
-        origin: request.origin,
-        destination: request.destination,
+        origin: request.collectionAddress, // Using collectionAddress as origin
+        destination: "N/A", // Not available in current schema
         status: request.status,
         createdAt: request.createdAt.toISOString(),
         clientId: request.clientId,

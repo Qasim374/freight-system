@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { billsOfLading, quotes } from "@/lib/schema";
+import { billsOfLading, shipments } from "@/lib/schema";
 import { isVendorRole } from "@/lib/auth-utils";
 
 export async function POST(request: Request) {
@@ -28,19 +28,13 @@ export async function POST(request: Request) {
 
     const vendorId = parseInt(userId);
 
-    // Verify that this vendor won the quote for this shipment
-    const wonQuote = await db
+    // Verify that this shipment is assigned to this vendor
+    const assignedShipment = await db
       .select()
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.shipmentId, shipmentId),
-          eq(quotes.vendorId, vendorId),
-          eq(quotes.isWinner, true)
-        )
-      );
+      .from(shipments)
+      .where(eq(shipments.id, shipmentId) && eq(shipments.vendorId, vendorId));
 
-    if (wonQuote.length === 0) {
+    if (assignedShipment.length === 0) {
       return NextResponse.json(
         { error: "You are not authorized to upload BL for this shipment" },
         { status: 403 }
@@ -63,22 +57,29 @@ export async function POST(request: Request) {
       if (blType === "draft") {
         await db
           .update(billsOfLading)
-          .set({ draftBL: fileUrl })
+          .set({
+            draftBl: fileUrl,
+            blStatus: "draft_uploaded",
+          })
           .where(eq(billsOfLading.shipmentId, shipmentId));
       } else {
         await db
           .update(billsOfLading)
-          .set({ finalBL: fileUrl })
+          .set({
+            finalBl: fileUrl,
+            blStatus: "final_uploaded",
+          })
           .where(eq(billsOfLading.shipmentId, shipmentId));
       }
     } else {
       // Create new record
       await db.insert(billsOfLading).values({
         shipmentId,
-        uploadedBy: vendorId,
-        draftBL: blType === "draft" ? fileUrl : null,
-        finalBL: blType === "final" ? fileUrl : null,
-        uploadedAt: new Date(),
+        vendorId,
+        draftBl: blType === "draft" ? fileUrl : null,
+        finalBl: blType === "final" ? fileUrl : null,
+        blStatus: blType === "draft" ? "draft_uploaded" : "final_uploaded",
+        createdAt: new Date(),
       });
     }
 

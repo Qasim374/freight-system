@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { amendments, quotes, shipments } from "@/lib/schema";
+import { amendments, shipments, billsOfLading } from "@/lib/schema";
 import { isVendorRole } from "@/lib/auth-utils";
 
 export async function GET(request: Request) {
@@ -16,13 +16,13 @@ export async function GET(request: Request) {
   try {
     const vendorId = parseInt(userId);
 
-    // Get amendments for shipments where this vendor won the quote
+    // Get amendments for shipments assigned to this vendor
     const vendorAmendments = await db
       .select({
         id: amendments.id,
-        shipmentId: amendments.shipmentId,
-        requestType: amendments.requestType,
-        description: amendments.description,
+        shipmentId: billsOfLading.shipmentId,
+        requestType: amendments.initiatedBy,
+        description: amendments.reason,
         status: amendments.status,
         createdAt: amendments.createdAt,
         extraCost: amendments.extraCost,
@@ -30,13 +30,9 @@ export async function GET(request: Request) {
         reason: amendments.reason,
       })
       .from(amendments)
-      .leftJoin(quotes, eq(amendments.shipmentId, quotes.shipmentId))
-      .where(
-        and(
-          eq(quotes.vendorId, vendorId),
-          eq(quotes.isWinner, true)
-        )
-      );
+      .leftJoin(billsOfLading, eq(amendments.blId, billsOfLading.id))
+      .leftJoin(shipments, eq(billsOfLading.shipmentId, shipments.id))
+      .where(eq(shipments.vendorId, vendorId));
 
     return NextResponse.json({
       amendments: vendorAmendments.map((amendment) => ({
@@ -58,4 +54,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 
 interface WonShipment {
-  id: string;
+  id: number;
   containerType: string;
   commodity: string;
   origin: string;
@@ -14,8 +14,8 @@ interface WonShipment {
   cost: string;
   sailingDate: string;
   carrierName: string;
-  draftBL?: string;
-  finalBL?: string;
+  draftBl?: string;
+  finalBl?: string;
 }
 
 interface BLUploadModalProps {
@@ -72,7 +72,7 @@ export default function BLUploadModal({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("shipmentId", shipment.id);
+      formData.append("shipmentId", shipment.id.toString());
       formData.append("blType", blType);
 
       const response = await fetch("/api/vendor/upload-bl", {
@@ -107,7 +107,7 @@ export default function BLUploadModal({
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-gray-900">
               Upload {blType === "draft" ? "Draft" : "Final"} BL for Shipment #
-              {shipment.id.substring(0, 8)}
+              {shipment.id.toString().substring(0, 8)}
             </h3>
             <button
               onClick={onClose}

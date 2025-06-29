@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { amendments, quotes } from "@/lib/schema";
+import { amendments, shipments, billsOfLading } from "@/lib/schema";
 import { isVendorRole } from "@/lib/auth-utils";
 
 export async function POST(request: Request) {
@@ -26,17 +26,14 @@ export async function POST(request: Request) {
 
     const vendorId = parseInt(userId);
 
-    // Verify that this amendment is for a shipment where this vendor won the quote
+    // Verify that this amendment is for a shipment assigned to this vendor
     const amendment = await db
       .select()
       .from(amendments)
-      .leftJoin(quotes, eq(amendments.shipmentId, quotes.shipmentId))
+      .leftJoin(billsOfLading, eq(amendments.blId, billsOfLading.id))
+      .leftJoin(shipments, eq(billsOfLading.shipmentId, shipments.id))
       .where(
-        and(
-          eq(amendments.id, amendmentId),
-          eq(quotes.vendorId, vendorId),
-          eq(quotes.isWinner, true)
-        )
+        and(eq(amendments.id, amendmentId), eq(shipments.vendorId, vendorId))
       );
 
     if (amendment.length === 0) {
@@ -50,11 +47,11 @@ export async function POST(request: Request) {
     await db
       .update(amendments)
       .set({
-        status: response === "approve" ? "approved" : "rejected",
+        status: response === "approve" ? "accepted" : "rejected",
         extraCost: response === "approve" ? extraCost?.toString() : null,
         delayDays: response === "approve" ? delayDays : null,
         reason,
-        respondedAt: new Date(),
+        vendorReplyAt: new Date(),
       })
       .where(eq(amendments.id, amendmentId));
 

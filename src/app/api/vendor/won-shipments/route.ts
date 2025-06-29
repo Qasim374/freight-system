@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { quotes, shipments, billsOfLading } from "@/lib/schema";
+import { shipments, billsOfLading, quotes, quoteBids } from "@/lib/schema";
 import { isVendorRole } from "@/lib/auth-utils";
 
 export async function GET(request: Request) {
@@ -16,38 +16,36 @@ export async function GET(request: Request) {
   try {
     const vendorId = parseInt(userId);
 
-    // Get won shipments (quotes where vendor is winner)
+    // Get won shipments (shipments assigned to this vendor)
     const wonShipments = await db
       .select({
         id: shipments.id,
-        containerType: shipments.containerType,
-        commodity: shipments.commodity,
-        origin: shipments.origin,
-        destination: shipments.destination,
-        status: shipments.status,
-        quoteId: quotes.id,
-        cost: quotes.cost,
-        sailingDate: quotes.sailingDate,
-        carrierName: quotes.carrierName,
-        draftBL: billsOfLading.draftBL,
-        finalBL: billsOfLading.finalBL,
+        containerType: quotes.containerType,
+        commodity: quotes.commodity,
+        collectionAddress: quotes.collectionAddress,
+        status: shipments.shipmentStatus,
+        cost: quoteBids.costUsd,
+        sailingDate: quoteBids.sailingDate,
+        carrierName: quoteBids.carrierName,
+        draftBL: billsOfLading.draftBl,
+        finalBL: billsOfLading.finalBl,
       })
-      .from(quotes)
-      .leftJoin(shipments, eq(quotes.shipmentId, shipments.id))
+      .from(shipments)
+      .leftJoin(quotes, eq(shipments.quoteId, quotes.id))
+      .leftJoin(quoteBids, eq(quotes.id, quoteBids.quoteId))
       .leftJoin(billsOfLading, eq(shipments.id, billsOfLading.shipmentId))
-      .where(and(eq(quotes.vendorId, vendorId), eq(quotes.isWinner, true)));
+      .where(eq(shipments.vendorId, vendorId));
 
     return NextResponse.json({
       shipments: wonShipments.map((shipment) => ({
         id: shipment.id,
         containerType: shipment.containerType,
         commodity: shipment.commodity,
-        origin: shipment.origin,
-        destination: shipment.destination,
+        origin: shipment.collectionAddress,
+        destination: "N/A",
         status: shipment.status,
-        quoteId: shipment.quoteId,
         cost: shipment.cost,
-        sailingDate: shipment.sailingDate.toISOString(),
+        sailingDate: shipment.sailingDate?.toISOString(),
         carrierName: shipment.carrierName,
         draftBL: shipment.draftBL,
         finalBL: shipment.finalBL,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { shipments } from "@/lib/schema";
+import { quotes } from "@/lib/schema";
 import { isVendorRole } from "@/lib/auth-utils";
 
 export async function GET(request: Request) {
@@ -14,18 +14,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Get recent quote requests (shipments with quote_requested status)
+    // Get recent quote requests (awaiting_bids status)
     const recentRequests = await db
       .select({
-        id: shipments.id,
-        containerType: shipments.containerType,
-        commodity: shipments.commodity,
-        status: shipments.status,
-        createdAt: shipments.createdAt,
+        id: quotes.id,
+        containerType: quotes.containerType,
+        commodity: quotes.commodity,
+        status: quotes.status,
+        createdAt: quotes.createdAt,
       })
-      .from(shipments)
-      .where(eq(shipments.status, "quote_requested"))
-      .orderBy(desc(shipments.createdAt))
+      .from(quotes)
+      .where(eq(quotes.status, "awaiting_bids"))
+      .orderBy(desc(quotes.createdAt))
       .limit(5);
 
     return NextResponse.json({

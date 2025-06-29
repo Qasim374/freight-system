@@ -20,7 +20,6 @@ export const users = mysqlTable("users", {
   role: varchar("role", { length: 50 }),
   company: varchar("company", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
-  lastLogin: timestamp("last_login"),
 });
 
 // QUOTES
