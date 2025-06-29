@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { db, testConnection } from "@/lib/db";
 import { eq, and, count, avg, sql, desc } from "drizzle-orm";
-import { users, quotes, shipments } from "@/lib/schema";
+import { users, quoteBids, quotes } from "@/lib/schema";
 
 export async function GET(
   request: NextRequest,
@@ -38,13 +38,13 @@ export async function GET(
         id: users.id,
         company: users.company,
         email: users.email,
-        quoteCount: count(quotes.id),
-        winRate: sql<number>`(COUNT(CASE WHEN ${quotes.isWinner} THEN 1 END) * 100.0 / COUNT(*))`,
-        avgBidGap: avg(quotes.cost),
-        totalRevenue: sql<number>`SUM(CASE WHEN ${quotes.isWinner} THEN ${quotes.cost} ELSE 0 END)`,
+        quoteCount: count(quoteBids.id),
+        winRate: sql<number>`(COUNT(CASE WHEN ${quoteBids.status} = 'selected' THEN 1 END) * 100.0 / COUNT(*))`,
+        avgBidGap: avg(quoteBids.costUsd),
+        totalRevenue: sql<number>`SUM(CASE WHEN ${quoteBids.status} = 'selected' THEN ${quoteBids.costUsd} ELSE 0 END)`,
       })
       .from(users)
-      .leftJoin(quotes, eq(users.id, quotes.vendorId))
+      .leftJoin(quoteBids, eq(users.id, quoteBids.vendorId))
       .where(eq(users.id, vendorId))
       .groupBy(users.id, users.company, users.email);
 
@@ -54,20 +54,20 @@ export async function GET(
 
     const vendor = vendorStats[0];
 
-    // Get recent quotes
-    const recentQuotes = await db
+    // Get recent bids
+    const recentBids = await db
       .select({
-        id: quotes.id,
-        shipmentId: quotes.shipmentId,
-        cost: quotes.cost,
-        sailingDate: quotes.sailingDate,
-        carrierName: quotes.carrierName,
-        isWinner: quotes.isWinner,
-        submittedAt: quotes.submittedAt,
+        id: quoteBids.id,
+        quoteId: quoteBids.quoteId,
+        costUsd: quoteBids.costUsd,
+        sailingDate: quoteBids.sailingDate,
+        carrierName: quoteBids.carrierName,
+        status: quoteBids.status,
+        createdAt: quoteBids.createdAt,
       })
-      .from(quotes)
-      .where(eq(quotes.vendorId, vendorId))
-      .orderBy(desc(quotes.submittedAt))
+      .from(quoteBids)
+      .where(eq(quoteBids.vendorId, vendorId))
+      .orderBy(desc(quoteBids.createdAt))
       .limit(10);
 
     return NextResponse.json({
@@ -78,14 +78,14 @@ export async function GET(
       winRate: Number(vendor.winRate) || 0,
       avgBidGap: vendor.avgBidGap ? Number(vendor.avgBidGap) : undefined,
       totalRevenue: Number(vendor.totalRevenue) || 0,
-      recentQuotes: recentQuotes.map((quote) => ({
-        id: quote.id,
-        shipmentId: quote.shipmentId,
-        cost: Number(quote.cost),
-        sailingDate: quote.sailingDate.toISOString(),
-        carrierName: quote.carrierName,
-        isWinner: quote.isWinner,
-        submittedAt: quote.submittedAt.toISOString(),
+      recentBids: recentBids.map((bid) => ({
+        id: bid.id,
+        quoteId: bid.quoteId,
+        cost: Number(bid.costUsd),
+        sailingDate: bid.sailingDate?.toISOString() || "N/A",
+        carrierName: bid.carrierName || "N/A",
+        status: bid.status,
+        submittedAt: bid.createdAt.toISOString(),
       })),
     });
   } catch (error) {

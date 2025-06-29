@@ -4,22 +4,27 @@ import { useState, useEffect } from "react";
 
 interface Amendment {
   id: number;
-  shipmentId: string;
+  blId: number;
+  initiatedBy: string;
   reason: string;
+  fileUpload: string;
   extraCost: number;
+  markupAmount: number;
   delayDays: number;
   status: string;
+  approvedBy: string;
+  clientResponseAt: string | null;
+  adminReviewAt: string | null;
+  vendorReplyAt: string | null;
   createdAt: string;
   client: string;
-  containerType: string;
-  commodity: string;
 }
 
 export default function AmendmentTable() {
   const [amendments, setAmendments] = useState<Amendment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState("admin_review");
+  const [selectedStatus, setSelectedStatus] = useState("requested");
   const [selectedAmendment, setSelectedAmendment] = useState<Amendment | null>(
     null
   );
@@ -97,6 +102,25 @@ export default function AmendmentTable() {
     }
   };
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "requested":
+        return "Requested";
+      case "vendor_replied":
+        return "Vendor Replied";
+      case "admin_review":
+        return "Admin Review";
+      case "client_review":
+        return "Client Review";
+      case "accepted":
+        return "Accepted";
+      case "rejected":
+        return "Rejected";
+      default:
+        return status;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -135,21 +159,26 @@ export default function AmendmentTable() {
     <div className="overflow-x-auto">
       <div className="p-4 border-b bg-gray-50">
         <div className="flex space-x-4">
-          {["admin_review", "client_review", "accepted", "rejected"].map(
-            (status) => (
-              <button
-                key={status}
-                className={`px-4 py-2 rounded-md font-medium transition-colors duration-200 ${
-                  selectedStatus === status
-                    ? "bg-gray-700 text-white shadow-sm"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300 hover:text-gray-900"
-                }`}
-                onClick={() => setSelectedStatus(status)}
-              >
-                {status.replace(/_/g, " ").toUpperCase()}
-              </button>
-            )
-          )}
+          {[
+            "requested",
+            "vendor_replied",
+            "admin_review",
+            "client_review",
+            "accepted",
+            "rejected",
+          ].map((status) => (
+            <button
+              key={status}
+              className={`px-4 py-2 rounded-md font-medium transition-colors duration-200 ${
+                selectedStatus === status
+                  ? "bg-gray-700 text-white shadow-sm"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300 hover:text-gray-900"
+              }`}
+              onClick={() => setSelectedStatus(status)}
+            >
+              {getStatusText(status)}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -157,10 +186,13 @@ export default function AmendmentTable() {
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Shipment ID
+              BL ID
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Client
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Initiated By
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Reason
@@ -186,10 +218,13 @@ export default function AmendmentTable() {
           {amendments.map((amendment) => (
             <tr key={amendment.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {amendment.shipmentId.substring(0, 8)}
+                {amendment.blId.toString().substring(0, 8)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {amendment.client}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {amendment.initiatedBy}
               </td>
               <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                 {amendment.reason}
@@ -200,9 +235,7 @@ export default function AmendmentTable() {
                   : "No cost"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {amendment.delayDays > 0
-                  ? `${amendment.delayDays} days`
-                  : "No delay"}
+                {amendment.delayDays} days
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span
@@ -210,142 +243,129 @@ export default function AmendmentTable() {
                     amendment.status
                   )}`}
                 >
-                  {amendment.status.replace(/_/g, " ").toUpperCase()}
+                  {getStatusText(amendment.status)}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {new Date(amendment.createdAt).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                {amendment.status === "admin_review" && (
-                  <>
-                    <button
-                      onClick={() => handleAction(amendment.id, "push")}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                    >
-                      Push to Client
-                    </button>
-                    <button
-                      onClick={() => handleAction(amendment.id, "approve")}
-                      className="text-green-600 hover:text-green-900 mr-3"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleAction(amendment.id, "reject")}
-                      className="text-red-600 hover:text-red-900 mr-3"
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => {
-                    setSelectedAmendment(amendment);
-                    setShowDetailsModal(true);
-                  }}
-                  className="text-gray-600 hover:text-gray-900"
-                >
-                  Details
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setSelectedAmendment(amendment)}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    View
+                  </button>
+                  {amendment.status === "admin_review" && (
+                    <>
+                      <button
+                        onClick={() => handleAction(amendment.id, "approve")}
+                        className="text-green-600 hover:text-green-900"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleAction(amendment.id, "reject")}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        onClick={() => handleAction(amendment.id, "push")}
+                        className="text-purple-600 hover:text-purple-900"
+                      >
+                        Push to Client
+                      </button>
+                    </>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {amendments.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          No amendments found for this status
-        </div>
-      )}
-
       {/* Amendment Details Modal */}
-      {showDetailsModal && selectedAmendment && (
+      {selectedAmendment && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Amendment Details
+                Amendment Details #{selectedAmendment.id}
               </h3>
-              <div className="space-y-4">
+              <div className="space-y-3 text-sm">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Shipment ID
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {selectedAmendment.shipmentId}
-                  </p>
+                  <span className="font-medium text-gray-500">BL ID:</span>
+                  <span className="ml-2 text-gray-900">
+                    {selectedAmendment.blId}
+                  </span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Client
-                  </label>
-                  <p className="text-sm text-gray-900">
+                  <span className="font-medium text-gray-500">Client:</span>
+                  <span className="ml-2 text-gray-900">
                     {selectedAmendment.client}
-                  </p>
+                  </span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Container Type
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {selectedAmendment.containerType}
-                  </p>
+                  <span className="font-medium text-gray-500">
+                    Initiated By:
+                  </span>
+                  <span className="ml-2 text-gray-900">
+                    {selectedAmendment.initiatedBy}
+                  </span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Commodity
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {selectedAmendment.commodity}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Reason
-                  </label>
-                  <p className="text-sm text-gray-900">
+                  <span className="font-medium text-gray-500">Reason:</span>
+                  <span className="ml-2 text-gray-900">
                     {selectedAmendment.reason}
-                  </p>
+                  </span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Extra Cost
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {selectedAmendment.extraCost > 0
-                      ? `$${selectedAmendment.extraCost.toFixed(2)}`
-                      : "No additional cost"}
-                  </p>
+                  <span className="font-medium text-gray-500">Extra Cost:</span>
+                  <span className="ml-2 text-gray-900">
+                    ${selectedAmendment.extraCost.toFixed(2)}
+                  </span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Delay Days
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {selectedAmendment.delayDays > 0
-                      ? `${selectedAmendment.delayDays} days`
-                      : "No delay"}
-                  </p>
+                  <span className="font-medium text-gray-500">
+                    Markup Amount:
+                  </span>
+                  <span className="ml-2 text-gray-900">
+                    ${selectedAmendment.markupAmount.toFixed(2)}
+                  </span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Status
-                  </label>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                      selectedAmendment.status
-                    )}`}
-                  >
-                    {selectedAmendment.status.replace(/_/g, " ").toUpperCase()}
+                  <span className="font-medium text-gray-500">Delay Days:</span>
+                  <span className="ml-2 text-gray-900">
+                    {selectedAmendment.delayDays}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-500">Status:</span>
+                  <span className="ml-2 text-gray-900">
+                    {getStatusText(selectedAmendment.status)}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-500">
+                    File Upload:
+                  </span>
+                  <span className="ml-2 text-gray-900">
+                    {selectedAmendment.fileUpload || "None"}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-500">Created:</span>
+                  <span className="ml-2 text-gray-900">
+                    {new Date(selectedAmendment.createdAt).toLocaleDateString()}
                   </span>
                 </div>
               </div>
-              <div className="flex justify-end mt-6">
+              <div className="mt-6 flex justify-end">
                 <button
-                  onClick={() => setShowDetailsModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  onClick={() => setSelectedAmendment(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Close
                 </button>

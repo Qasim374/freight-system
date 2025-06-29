@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { db, testConnection } from "@/lib/db";
 import { count, eq } from "drizzle-orm";
-import { shipments, amendments, invoices } from "@/lib/schema";
+import { quotes, amendments, invoices } from "@/lib/schema";
 
 export async function GET() {
   try {
@@ -38,8 +38,8 @@ export async function GET() {
     try {
       const quoteRequestsResult = await db
         .select({ count: count() })
-        .from(shipments)
-        .where(eq(shipments.status, "quote_requested"));
+        .from(quotes)
+        .where(eq(quotes.status, "pending"));
       quoteRequests = quoteRequestsResult[0]?.count || 0;
     } catch (error) {
       console.error("Error fetching quote requests:", error);
@@ -49,7 +49,7 @@ export async function GET() {
       const pendingAmendmentsResult = await db
         .select({ count: count() })
         .from(amendments)
-        .where(eq(amendments.status, "admin_review"));
+        .where(eq(amendments.status, "pending"));
       pendingAmendments = pendingAmendmentsResult[0]?.count || 0;
     } catch (error) {
       console.error("Error fetching pending amendments:", error);

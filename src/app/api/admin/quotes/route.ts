@@ -3,20 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { db, testConnection } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
-import { quotes, shipments, users } from "@/lib/schema";
+import { quotes, quoteBids, users } from "@/lib/schema";
 
-type ShipmentStatus =
-  | "quote_requested"
-  | "quote_received"
-  | "quote_confirmed"
-  | "booking"
-  | "booked"
-  | "draft_bl"
-  | "final_bl"
-  | "in_transit"
-  | "loading"
-  | "sailed"
-  | "delivered";
+type QuoteStatus =
+  | "awaiting_bids"
+  | "bids_received"
+  | "client_review"
+  | "booked";
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,65 +31,61 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const statusParam = searchParams.get("status") || "quote_requested";
+    const statusParam = searchParams.get("status") || "awaiting_bids";
 
     // Validate status parameter
-    const validStatuses: ShipmentStatus[] = [
-      "quote_requested",
-      "quote_received",
-      "quote_confirmed",
-      "booking",
+    const validStatuses: QuoteStatus[] = [
+      "awaiting_bids",
+      "bids_received",
+      "client_review",
       "booked",
-      "draft_bl",
-      "final_bl",
-      "in_transit",
-      "loading",
-      "sailed",
-      "delivered",
     ];
-    const status: ShipmentStatus = validStatuses.includes(
-      statusParam as ShipmentStatus
+    const status: QuoteStatus = validStatuses.includes(
+      statusParam as QuoteStatus
     )
-      ? (statusParam as ShipmentStatus)
-      : "quote_requested";
+      ? (statusParam as QuoteStatus)
+      : "awaiting_bids";
 
-    // Fetch quotes with shipment and client information
+    // Fetch quotes with client information
     const quotesData = await db
       .select({
         id: quotes.id,
-        shipmentId: quotes.shipmentId,
-        cost: quotes.cost,
-        sailingDate: quotes.sailingDate,
-        carrierName: quotes.carrierName,
-        submittedAt: quotes.submittedAt,
-        isWinner: quotes.isWinner,
-        vendorId: quotes.vendorId,
-        containerType: shipments.containerType,
-        commodity: shipments.commodity,
+        clientId: quotes.clientId,
+        mode: quotes.mode,
+        containerType: quotes.containerType,
+        numContainers: quotes.numContainers,
+        commodity: quotes.commodity,
+        weightPerContainer: quotes.weightPerContainer,
+        shipmentDate: quotes.shipmentDate,
+        collectionAddress: quotes.collectionAddress,
+        status: quotes.status,
+        finalPrice: quotes.finalPrice,
+        selectedVendorId: quotes.selectedVendorId,
+        createdAt: quotes.createdAt,
         clientEmail: users.email,
         clientCompany: users.company,
-        vendorEmail: users.email,
-        vendorCompany: users.company,
       })
       .from(quotes)
-      .innerJoin(shipments, eq(quotes.shipmentId, shipments.id))
-      .innerJoin(users, eq(shipments.clientId, users.id))
-      .where(eq(shipments.status, status));
+      .innerJoin(users, eq(quotes.clientId, users.id))
+      .where(eq(quotes.status, status));
 
     // Transform the data to match the expected format
     const transformedQuotes = quotesData.map((quote) => ({
       id: quote.id,
-      shipmentId: quote.shipmentId,
       client: quote.clientCompany || quote.clientEmail,
       containerType: quote.containerType || "N/A",
-      cost: Number(quote.cost),
-      sailingDate: quote.sailingDate.toISOString(),
-      carrierName: quote.carrierName,
-      status: status,
-      vendorId: quote.vendorId,
-      vendorName: quote.vendorCompany || `Vendor ${quote.vendorId}`,
-      submittedAt: quote.submittedAt.toISOString(),
-      isWinner: quote.isWinner,
+      commodity: quote.commodity || "N/A",
+      mode: quote.mode || "N/A",
+      numContainers: quote.numContainers || 0,
+      weightPerContainer: quote.weightPerContainer
+        ? Number(quote.weightPerContainer)
+        : 0,
+      shipmentDate: quote.shipmentDate?.toISOString() || "N/A",
+      collectionAddress: quote.collectionAddress || "N/A",
+      status: quote.status,
+      finalPrice: quote.finalPrice ? Number(quote.finalPrice) : 0,
+      selectedVendorId: quote.selectedVendorId,
+      createdAt: quote.createdAt.toISOString(),
     }));
 
     return NextResponse.json(transformedQuotes);
@@ -142,8 +131,7 @@ export async function PUT(request: NextRequest) {
       // Get the quote details first
       const quoteData = await db
         .select({
-          shipmentId: quotes.shipmentId,
-          cost: quotes.cost,
+          finalPrice: quotes.finalPrice,
         })
         .from(quotes)
         .where(eq(quotes.id, quoteId));
@@ -153,23 +141,16 @@ export async function PUT(request: NextRequest) {
       }
 
       const quote = quoteData[0];
-      const clientPrice = Number(quote.cost) * (1 + markup);
+      const clientPrice = Number(quote.finalPrice) * (1 + markup);
 
-      // Update the quote to mark it as winner
+      // Update the quote to mark it as booked
       await db
         .update(quotes)
-        .set({ isWinner: true })
-        .where(eq(quotes.id, quoteId));
-
-      // Update the shipment status to booked and set final price
-      await db
-        .update(shipments)
         .set({
           status: "booked",
           finalPrice: clientPrice,
-          winningQuoteId: quoteId,
         })
-        .where(eq(shipments.id, quote.shipmentId));
+        .where(eq(quotes.id, quoteId));
 
       return NextResponse.json({
         success: true,
@@ -182,8 +163,7 @@ export async function PUT(request: NextRequest) {
       // Get the quote details first
       const quoteData = await db
         .select({
-          shipmentId: quotes.shipmentId,
-          cost: quotes.cost,
+          finalPrice: quotes.finalPrice,
         })
         .from(quotes)
         .where(eq(quotes.id, quoteId));
@@ -193,28 +173,33 @@ export async function PUT(request: NextRequest) {
       }
 
       const quote = quoteData[0];
-      const clientPrice = Number(quote.cost) * (1 + markup);
+      const clientPrice = Number(quote.finalPrice) * (1 + markup);
 
-      // Update the quote to mark it as winner with custom markup
+      // Update the quote to mark it as booked with custom markup
       await db
         .update(quotes)
-        .set({ isWinner: true })
-        .where(eq(quotes.id, quoteId));
-
-      // Update the shipment status to booked and set final price
-      await db
-        .update(shipments)
         .set({
           status: "booked",
           finalPrice: clientPrice,
-          winningQuoteId: quoteId,
         })
-        .where(eq(shipments.id, quote.shipmentId));
+        .where(eq(quotes.id, quoteId));
 
       return NextResponse.json({
         success: true,
         clientPrice: clientPrice,
         markup: markup,
+      });
+    }
+
+    if (action === "reject") {
+      // Update the quote to mark it as rejected
+      await db
+        .update(quotes)
+        .set({ status: "awaiting_bids" })
+        .where(eq(quotes.id, quoteId));
+
+      return NextResponse.json({
+        success: true,
       });
     }
 

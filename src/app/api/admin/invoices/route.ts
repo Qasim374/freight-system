@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { db, testConnection } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
-import { invoices, shipments, users } from "@/lib/schema";
+import { invoices, users } from "@/lib/schema";
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,19 +37,20 @@ export async function GET(request: NextRequest) {
       .select({
         id: invoices.id,
         shipmentId: invoices.shipmentId,
+        userId: invoices.userId,
         amount: invoices.amount,
         type: invoices.type,
         status: invoices.status,
         dueDate: invoices.dueDate,
+        paymentMethod: invoices.paymentMethod,
+        proofUploaded: invoices.proofUploaded,
+        adminMarginReportGenerated: invoices.adminMarginReportGenerated,
         createdAt: invoices.createdAt,
         clientEmail: users.email,
         clientCompany: users.company,
-        containerType: shipments.containerType,
-        commodity: shipments.commodity,
       })
       .from(invoices)
-      .innerJoin(shipments, eq(invoices.shipmentId, shipments.id))
-      .innerJoin(users, eq(shipments.clientId, users.id))
+      .innerJoin(users, eq(invoices.userId, users.id))
       .where(eq(invoices.type, type));
 
     // Apply status filter if not "all"
@@ -63,14 +64,16 @@ export async function GET(request: NextRequest) {
     const transformedInvoices = invoicesData.map((invoice) => ({
       id: invoice.id,
       shipmentId: invoice.shipmentId,
+      userId: invoice.userId,
       amount: Number(invoice.amount),
       type: invoice.type,
       status: invoice.status,
       dueDate: invoice.dueDate?.toISOString() || null,
+      paymentMethod: invoice.paymentMethod,
+      proofUploaded: invoice.proofUploaded,
+      adminMarginReportGenerated: Boolean(invoice.adminMarginReportGenerated),
       createdAt: invoice.createdAt.toISOString(),
       client: invoice.clientCompany || invoice.clientEmail,
-      containerType: invoice.containerType || "N/A",
-      commodity: invoice.commodity || "N/A",
     }));
 
     return NextResponse.json(transformedInvoices);
@@ -127,6 +130,16 @@ export async function PUT(request: NextRequest) {
       await db
         .update(invoices)
         .set({ status: "unpaid" })
+        .where(eq(invoices.id, invoiceId));
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "mark_awaiting_verification") {
+      // Update the invoice to mark it as awaiting verification
+      await db
+        .update(invoices)
+        .set({ status: "awaiting_verification" })
         .where(eq(invoices.id, invoiceId));
 
       return NextResponse.json({ success: true });

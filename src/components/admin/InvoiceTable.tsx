@@ -4,17 +4,17 @@ import { useState, useEffect } from "react";
 
 interface Invoice {
   id: number;
-  shipmentId: string;
+  shipmentId: number;
+  userId: number;
   amount: number;
   type: "client" | "vendor";
   status: "paid" | "unpaid" | "awaiting_verification";
-  dueDate: string;
+  dueDate: string | null;
+  paymentMethod: string;
+  proofUploaded: string;
+  adminMarginReportGenerated: boolean;
   createdAt: string;
   client: string;
-  containerType: string;
-  commodity: string;
-  vendorName?: string;
-  paymentProof?: string;
 }
 
 export default function InvoiceTable() {
@@ -290,7 +290,7 @@ export default function InvoiceTable() {
                 #{invoice.id}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {invoice.shipmentId.substring(0, 8)}
+                {invoice.shipmentId.toString().substring(0, 8)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {invoice.client}

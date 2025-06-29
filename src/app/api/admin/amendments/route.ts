@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { db, testConnection } from "@/lib/db";
 import { eq } from "drizzle-orm";
-import { amendments, shipments, users } from "@/lib/schema";
+import { amendments, billsOfLading, users } from "@/lib/schema";
 
 type AmendmentStatus =
   | "requested"
@@ -50,38 +50,48 @@ export async function GET(request: NextRequest) {
       ? (statusParam as AmendmentStatus)
       : "requested";
 
-    // Fetch amendments with shipment and client information
+    // Fetch amendments with bill of lading and client information
     const amendmentsData = await db
       .select({
         id: amendments.id,
-        shipmentId: amendments.shipmentId,
+        blId: amendments.blId,
+        initiatedBy: amendments.initiatedBy,
         reason: amendments.reason,
+        fileUpload: amendments.fileUpload,
         extraCost: amendments.extraCost,
+        markupAmount: amendments.markupAmount,
         delayDays: amendments.delayDays,
         status: amendments.status,
+        approvedBy: amendments.approvedBy,
+        clientResponseAt: amendments.clientResponseAt,
+        adminReviewAt: amendments.adminReviewAt,
+        vendorReplyAt: amendments.vendorReplyAt,
         createdAt: amendments.createdAt,
         clientEmail: users.email,
         clientCompany: users.company,
-        containerType: shipments.containerType,
-        commodity: shipments.commodity,
       })
       .from(amendments)
-      .innerJoin(shipments, eq(amendments.shipmentId, shipments.id))
-      .innerJoin(users, eq(shipments.clientId, users.id))
+      .innerJoin(billsOfLading, eq(amendments.blId, billsOfLading.id))
+      .innerJoin(users, eq(billsOfLading.vendorId, users.id))
       .where(eq(amendments.status, status));
 
     // Transform the data to match the expected format
     const transformedAmendments = amendmentsData.map((amendment) => ({
       id: amendment.id,
-      shipmentId: amendment.shipmentId,
+      blId: amendment.blId,
+      initiatedBy: amendment.initiatedBy,
       reason: amendment.reason,
-      extraCost: Number(amendment.extraCost),
+      fileUpload: amendment.fileUpload,
+      extraCost: amendment.extraCost ? Number(amendment.extraCost) : 0,
+      markupAmount: amendment.markupAmount ? Number(amendment.markupAmount) : 0,
       delayDays: amendment.delayDays,
       status: amendment.status,
+      approvedBy: amendment.approvedBy,
+      clientResponseAt: amendment.clientResponseAt?.toISOString() || null,
+      adminReviewAt: amendment.adminReviewAt?.toISOString() || null,
+      vendorReplyAt: amendment.vendorReplyAt?.toISOString() || null,
       createdAt: amendment.createdAt.toISOString(),
       client: amendment.clientCompany || amendment.clientEmail,
-      containerType: amendment.containerType || "N/A",
-      commodity: amendment.commodity || "N/A",
     }));
 
     return NextResponse.json(transformedAmendments);
@@ -142,7 +152,10 @@ export async function PUT(request: NextRequest) {
     // Update the amendment status
     await db
       .update(amendments)
-      .set({ status: newStatus })
+      .set({
+        status: newStatus,
+        adminReviewAt: new Date(),
+      })
       .where(eq(amendments.id, amendmentId));
 
     return NextResponse.json({ success: true });

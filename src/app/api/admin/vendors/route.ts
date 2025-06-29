@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sql, count, eq, inArray } from "drizzle-orm";
-import { users, quotes } from "@/lib/schema";
+import { users, quoteBids } from "@/lib/schema";
 
 export async function GET() {
   try {
@@ -14,21 +14,21 @@ export async function GET() {
       "vendor_manager",
     ] as const;
 
-    // Vendor win rates
+    // Vendor win rates - using quoteBids status
     const vendorWinRates = await db
       .select({
         vendorId: users.id,
         company: users.company,
-        quoteCount: count(quotes.id),
-        winRate: sql<number>`(COUNT(CASE WHEN ${quotes.isWinner} THEN 1 END) * 100.0 / COUNT(*))`,
+        quoteCount: count(quoteBids.id),
+        winRate: sql<number>`(COUNT(CASE WHEN ${quoteBids.status} = 'selected' THEN 1 END) * 100.0 / COUNT(*))`,
       })
       .from(users)
-      .leftJoin(quotes, eq(users.id, quotes.vendorId))
+      .leftJoin(quoteBids, eq(users.id, quoteBids.vendorId))
       .where(inArray(users.role, vendorRoles))
       .groupBy(users.id, users.company)
-      .having(sql`${count(quotes.id)} > 0`)
+      .having(sql`${count(quoteBids.id)} > 0`)
       .orderBy(
-        sql`(COUNT(CASE WHEN ${quotes.isWinner} THEN 1 END) * 100.0 / COUNT(*)) DESC`
+        sql`(COUNT(CASE WHEN ${quoteBids.status} = 'selected' THEN 1 END) * 100.0 / COUNT(*)) DESC`
       )
       .limit(10);
 
@@ -37,17 +37,17 @@ export async function GET() {
       .select({
         vendorId: users.id,
         company: users.company,
-        quoteCount: count(quotes.id),
-        winRate: sql<number>`(COUNT(CASE WHEN ${quotes.isWinner} THEN 1 END) * 100.0 / COUNT(*))`,
-        avgBidGap: sql<number>`AVG(${quotes.cost})`,
+        quoteCount: count(quoteBids.id),
+        winRate: sql<number>`(COUNT(CASE WHEN ${quoteBids.status} = 'selected' THEN 1 END) * 100.0 / COUNT(*))`,
+        avgBidGap: sql<number>`AVG(${quoteBids.costUsd})`,
       })
       .from(users)
-      .innerJoin(quotes, eq(users.id, quotes.vendorId))
+      .innerJoin(quoteBids, eq(users.id, quoteBids.vendorId))
       .where(inArray(users.role, vendorRoles))
       .groupBy(users.id, users.company)
-      .having(sql`${count(quotes.id)} > 0`)
+      .having(sql`${count(quoteBids.id)} > 0`)
       .orderBy(
-        sql`(COUNT(CASE WHEN ${quotes.isWinner} THEN 1 END) * 100.0 / COUNT(*)) DESC`
+        sql`(COUNT(CASE WHEN ${quoteBids.status} = 'selected' THEN 1 END) * 100.0 / COUNT(*)) DESC`
       )
       .limit(5);
 

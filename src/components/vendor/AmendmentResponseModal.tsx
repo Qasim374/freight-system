@@ -133,7 +133,7 @@ export default function AmendmentResponseModal({
                   Shipment ID
                 </label>
                 <p className="mt-1 text-sm text-gray-900">
-                  #{amendment.shipmentId.substring(0, 8)}
+                  #{amendment.shipmentId.toString().substring(0, 8)}
                 </p>
               </div>
               <div>

@@ -8,11 +8,11 @@ export async function GET() {
     // Shipment status distribution
     const shipmentStatus = await db
       .select({
-        status: shipments.status,
+        status: shipments.shipmentStatus,
         count: count(),
       })
       .from(shipments)
-      .groupBy(shipments.status);
+      .groupBy(shipments.shipmentStatus);
 
     // Revenue by month
     const revenueByMonth = await db
@@ -37,12 +37,12 @@ export async function GET() {
     // Quote volume by month
     const quoteVolume = await db
       .select({
-        month: sql<string>`DATE_FORMAT(${quotes.submittedAt}, '%Y-%m')`,
+        month: sql<string>`DATE_FORMAT(${quotes.createdAt}, '%Y-%m')`,
         quotes: count(),
       })
       .from(quotes)
-      .groupBy(sql`DATE_FORMAT(${quotes.submittedAt}, '%Y-%m')`)
-      .orderBy(sql`DATE_FORMAT(${quotes.submittedAt}, '%Y-%m')`);
+      .groupBy(sql`DATE_FORMAT(${quotes.createdAt}, '%Y-%m')`)
+      .orderBy(sql`DATE_FORMAT(${quotes.createdAt}, '%Y-%m')`);
 
     return NextResponse.json({
       shipmentStatus,

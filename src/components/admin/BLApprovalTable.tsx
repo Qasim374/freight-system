@@ -4,16 +4,16 @@ import { useState, useEffect } from "react";
 
 interface BillOfLading {
   id: number;
-  shipmentId: string;
-  version: "draft" | "final";
-  fileUrl: string;
-  uploadedBy: number;
-  approved: boolean;
-  uploadedAt: string;
+  shipmentId: number;
+  vendorId: number;
+  draftBl: string;
+  finalBl: string;
+  blStatus: "draft_uploaded" | "awaiting_client_approval" | "amendment_requested" | "final_uploaded" | "final_approved";
+  approvedByClient: boolean;
+  remarks: string;
+  finalizedAt: string | null;
+  createdAt: string;
   client: string;
-  containerType: string;
-  commodity: string;
-  vendorName?: string;
 }
 
 export default function BLApprovalTable() {
@@ -214,7 +214,7 @@ export default function BLApprovalTable() {
           {billsOfLading.map((bl) => (
             <tr key={bl.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {bl.shipmentId.substring(0, 8)}
+                {bl.shipmentId.toString().substring(0, 8)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {bl.client}
@@ -252,7 +252,7 @@ export default function BLApprovalTable() {
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <button
-                  onClick={() => downloadBL(bl.fileUrl, bl.shipmentId)}
+                  onClick={() => downloadBL(bl.fileUrl, bl.shipmentId.toString())}
                   className="text-blue-600 hover:text-blue-900 mr-3"
                 >
                   Download
@@ -386,7 +386,7 @@ export default function BLApprovalTable() {
                   </label>
                   <button
                     onClick={() =>
-                      downloadBL(selectedBL.fileUrl, selectedBL.shipmentId)
+                      downloadBL(selectedBL.fileUrl, selectedBL.shipmentId.toString())
                     }
                     className="text-blue-600 hover:text-blue-900 text-sm"
                   >

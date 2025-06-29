@@ -38,33 +38,40 @@ export async function GET(request: NextRequest) {
       .select({
         id: billsOfLading.id,
         shipmentId: billsOfLading.shipmentId,
-        version: billsOfLading.version,
-        fileUrl: billsOfLading.fileUrl,
-        uploadedBy: billsOfLading.uploadedBy,
-        approved: billsOfLading.approved,
-        uploadedAt: billsOfLading.uploadedAt,
+        vendorId: billsOfLading.vendorId,
+        draftBl: billsOfLading.draftBl,
+        finalBl: billsOfLading.finalBl,
+        blStatus: billsOfLading.blStatus,
+        approvedByClient: billsOfLading.approvedByClient,
+        remarks: billsOfLading.remarks,
+        finalizedAt: billsOfLading.finalizedAt,
+        createdAt: billsOfLading.createdAt,
         clientEmail: users.email,
         clientCompany: users.company,
-        containerType: shipments.containerType,
-        commodity: shipments.commodity,
       })
       .from(billsOfLading)
       .innerJoin(shipments, eq(billsOfLading.shipmentId, shipments.id))
       .innerJoin(users, eq(shipments.clientId, users.id))
-      .where(eq(billsOfLading.version, version));
+      .where(
+        version === "draft"
+          ? eq(billsOfLading.blStatus, "draft_uploaded")
+          : eq(billsOfLading.blStatus, "final_uploaded")
+      );
 
     // Transform the data to match the expected format
     const transformedBLs = blData.map((bl) => ({
       id: bl.id,
       shipmentId: bl.shipmentId,
-      version: bl.version,
-      fileUrl: bl.fileUrl,
-      uploadedBy: bl.uploadedBy,
-      approved: bl.approved,
-      uploadedAt: bl.uploadedAt.toISOString(),
+      vendorId: bl.vendorId,
+      version: version,
+      fileUrl: version === "draft" ? bl.draftBl : bl.finalBl,
+      uploadedBy: bl.vendorId,
+      approved: bl.approvedByClient,
+      uploadedAt: bl.createdAt.toISOString(),
       client: bl.clientCompany || bl.clientEmail,
-      containerType: bl.containerType || "N/A",
-      commodity: bl.commodity || "N/A",
+      blStatus: bl.blStatus,
+      remarks: bl.remarks,
+      finalizedAt: bl.finalizedAt?.toISOString() || null,
     }));
 
     return NextResponse.json(transformedBLs);
@@ -110,7 +117,10 @@ export async function PUT(request: NextRequest) {
       // Update the bill of lading to mark it as approved
       await db
         .update(billsOfLading)
-        .set({ approved: true })
+        .set({
+          approvedByClient: true,
+          blStatus: "final_approved",
+        })
         .where(eq(billsOfLading.id, blId));
 
       return NextResponse.json({ success: true });
@@ -120,7 +130,10 @@ export async function PUT(request: NextRequest) {
       // Update the bill of lading to mark it as not approved
       await db
         .update(billsOfLading)
-        .set({ approved: false })
+        .set({
+          approvedByClient: false,
+          blStatus: "amendment_requested",
+        })
         .where(eq(billsOfLading.id, blId));
 
       return NextResponse.json({ success: true });
