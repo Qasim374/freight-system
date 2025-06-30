@@ -10,6 +10,15 @@ interface QuoteRequest {
   createdAt: string;
   clientId: number;
   clientName?: string;
+  myBid?: {
+    cost: number;
+    status: string;
+    submittedAt: string;
+    isFastest: boolean;
+    winPercentage?: number;
+  };
+  totalBids?: number;
+  lowestBid?: number;
 }
 
 interface VendorQuoteTableProps {
@@ -21,6 +30,44 @@ export default function VendorQuoteTable({
   requests,
   onSubmitQuote,
 }: VendorQuoteTableProps) {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "awaiting_bids":
+        return "bg-yellow-100 text-yellow-800";
+      case "bids_received":
+        return "bg-blue-100 text-blue-800";
+      case "client_review":
+        return "bg-purple-100 text-purple-800";
+      case "booked":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "awaiting_bids":
+        return "Awaiting Bids";
+      case "bids_received":
+        return "Bids Received";
+      case "client_review":
+        return "Client Review";
+      case "booked":
+        return "Booked";
+      default:
+        return status.replace("_", " ").toUpperCase();
+    }
+  };
+
   if (requests.length === 0) {
     return (
       <div className="text-center py-12">
@@ -39,10 +86,10 @@ export default function VendorQuoteTable({
             />
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">
-            No quote requests
+            No quote requests available
           </h3>
           <p className="mt-1 text-sm text-gray-500">
-            There are currently no quote requests available.
+            Check back later for new opportunities
           </p>
         </div>
       </div>
@@ -55,7 +102,7 @@ export default function VendorQuoteTable({
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Shipment ID
+              Request ID
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Container Type
@@ -64,16 +111,16 @@ export default function VendorQuoteTable({
               Commodity
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Route
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Client
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Requested
+              Origin
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Status
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              My Bid
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Competition
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
@@ -86,39 +133,81 @@ export default function VendorQuoteTable({
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 #{request.id.toString().substring(0, 8)}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {request.containerType || "N/A"}
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {request.containerType}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {request.commodity || "N/A"}
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {request.commodity}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <div>
-                  <div className="font-medium">{request.origin || "N/A"}</div>
-                  <div className="text-gray-400">→</div>
-                  <div className="font-medium">
-                    {request.destination || "N/A"}
-                  </div>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {request.clientName || `Client #${request.clientId}`}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {new Date(request.createdAt).toLocaleDateString()}
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {request.origin || "N/A"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  Quote Requested
+                <span
+                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                    request.status
+                  )}`}
+                >
+                  {getStatusLabel(request.status)}
                 </span>
               </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {request.myBid ? (
+                  <div className="space-y-1">
+                    <div className="font-medium">
+                      ${request.myBid.cost.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {formatDate(request.myBid.submittedAt)}
+                    </div>
+                    {request.myBid.isFastest && (
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                        ⚡ Fastest Quote
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-gray-400">Not submitted</span>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {request.myBid && request.lowestBid ? (
+                  <div className="space-y-1">
+                    <div className="text-xs text-gray-500">
+                      {request.totalBids} total bids
+                    </div>
+                    {request.myBid.status === "selected" ? (
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                        🏆 Won
+                      </span>
+                    ) : request.myBid.status === "rejected" ? (
+                      <div className="text-xs">
+                        <span className="text-red-600 font-medium">
+                          Lost by {request.myBid.winPercentage?.toFixed(1)}%
+                        </span>
+                        <div className="text-gray-500">
+                          Lowest: ${request.lowestBid.toLocaleString()}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">Pending</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <button
-                  onClick={() => onSubmitQuote(request)}
-                  className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors"
-                >
-                  Submit Quote
-                </button>
+                {!request.myBid ? (
+                  <button
+                    onClick={() => onSubmitQuote(request)}
+                    className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors"
+                  >
+                    Submit Quote
+                  </button>
+                ) : (
+                  <span className="text-gray-400">Already submitted</span>
+                )}
               </td>
             </tr>
           ))}
